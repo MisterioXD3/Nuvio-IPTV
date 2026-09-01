@@ -1,0 +1,27 @@
+name = "nuvio-iptv"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-08-04"
+workers_dev = true
+
+[vars]
+ADDON_ID = "community.nuvio.iptv"
+ADDON_NAME = "Nuvio IPTV"
+ADDON_VERSION = "1.0.0"
+DEFAULT_USER_AGENT = "VLC/3.0.20 LibVLC/3.0.20"
+CATALOG_PAGE_SIZE = "100"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nuvio-iptv"
+database_id = "REEMPLAZAR_CON_DATABASE_ID"
+migrations_dir = "cloudflare/migrations"
+
+[assets]
+directory = "src/web/public"
+binding = "ASSETS"
+
+[observability]
+enabled = true
