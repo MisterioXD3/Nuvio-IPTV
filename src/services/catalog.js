@@ -38,6 +38,32 @@ const selectByUid = db.prepare(`
   WHERE i.uid = ? LIMIT 1
 `);
 
+const selectSeriesByType = db.prepare(`
+  SELECT uid, title, logo, group_name, episode_count, season_count FROM series
+  WHERE playlist_id = ? ORDER BY position LIMIT ? OFFSET ?
+`);
+
+const selectSeriesByGroup = db.prepare(`
+  SELECT uid, title, logo, group_name, episode_count, season_count FROM series
+  WHERE playlist_id = ? AND group_name = ? ORDER BY position LIMIT ? OFFSET ?
+`);
+
+const selectSeriesSearch = db.prepare(`
+  SELECT uid, title, logo, group_name, episode_count, season_count FROM series
+  WHERE playlist_id = ? AND search_title LIKE ? ORDER BY position LIMIT ? OFFSET ?
+`);
+
+const selectSeriesByUid = db.prepare(`
+  SELECT s.*, p.name AS playlist_name FROM series s
+  JOIN playlists p ON p.id = s.playlist_id
+  WHERE s.uid = ? LIMIT 1
+`);
+
+const selectEpisodes = db.prepare(`
+  SELECT uid, name, season, episode, logo FROM items
+  WHERE series_uid = ? ORDER BY season, episode, position
+`);
+
 const selectGroups = db.prepare(
   'SELECT name, item_count FROM groups WHERE playlist_id = ? AND type = ? ORDER BY name'
 );
@@ -80,6 +106,17 @@ const describeCatalogs = () =>
     }))
   );
 
+const toSeriesPreview = (row) => ({
+  id: `iptv:${row.uid}`,
+  type: 'series',
+  name: row.title,
+  poster: row.logo || undefined,
+  posterShape: 'poster',
+  logo: row.logo || undefined,
+  genres: row.group_name ? [row.group_name] : undefined,
+  description: `${row.episode_count} episodio(s) · ${row.season_count} temporada(s)`,
+});
+
 const toMetaPreview = (row) => ({
   id: `iptv:${row.uid}`,
   type: row.type,
@@ -102,6 +139,19 @@ const getCatalog = ({ id, type, genre, search, skip }) => {
   const cached = responseCache.get(cacheKey);
   if (cached) return cached;
 
+  if (type === 'series') {
+    let seriesRows;
+    if (search) {
+      const needle = `%${normalizeName(search)}%`;
+      seriesRows = selectSeriesSearch.all(parsed.playlistId, needle, limit, offset);
+    } else if (genre) {
+      seriesRows = selectSeriesByGroup.all(parsed.playlistId, genre, limit, offset);
+    } else {
+      seriesRows = selectSeriesByType.all(parsed.playlistId, limit, offset);
+    }
+    return responseCache.set(cacheKey, { metas: seriesRows.map(toSeriesPreview) });
+  }
+
   let rows;
   if (search) {
     const query = ftsQuery(search);
@@ -122,6 +172,35 @@ const getMeta = (type, id) => {
   const cached = responseCache.get(cacheKey);
   if (cached) return cached;
 
+  if (type === 'series') {
+    const show = selectSeriesByUid.get(uid);
+    if (show) {
+      const episodes = selectEpisodes.all(uid);
+      const meta = {
+        meta: {
+          id: `iptv:${show.uid}`,
+          type: 'series',
+          name: show.title,
+          poster: show.logo || undefined,
+          posterShape: 'poster',
+          background: show.logo || undefined,
+          logo: show.logo || undefined,
+          genres: show.group_name ? [show.group_name] : undefined,
+          description: `${show.group_name || ''}${show.group_name ? ' · ' : ''}${show.playlist_name}`,
+          videos: episodes.map((row) => ({
+            id: `iptv:${row.uid}`,
+            title: episodeTitle(row, show.title),
+            season: row.season || 1,
+            episode: row.episode || 1,
+            thumbnail: row.logo || show.logo || undefined,
+            available: true,
+          })),
+        },
+      };
+      return responseCache.set(cacheKey, meta);
+    }
+  }
+
   const row = selectByUid.get(uid);
   if (!row || row.type !== type) return null;
 
@@ -139,6 +218,13 @@ const getMeta = (type, id) => {
     },
   };
   return responseCache.set(cacheKey, meta);
+};
+
+// Keeps the chapter name readable inside the show page: drops the repeated
+// series title and falls back to "TxEE" when nothing is left.
+const episodeTitle = (row, showTitle) => {
+  const stripped = row.name.replace(showTitle, '').replace(/^[\s._-]+/, '').trim();
+  return stripped || `T${row.season || 1} E${row.episode || 1}`;
 };
 
 const getStreams = (type, id) => {

@@ -22,9 +22,14 @@ const itemUid = (playlistId, item) =>
     .digest('base64url')
     .slice(0, 16);
 
+const seriesUid = (playlistId, key) =>
+  crypto.createHash('sha1').update(`s|${playlistId}|${key}`).digest('base64url').slice(0, 16);
+
 const insertStaging = db.prepare(`
-  INSERT INTO staging_items (playlist_id, uid, type, ext_id, name, search_name, group_name, logo, url, position, attrs)
-  VALUES (@playlist_id, @uid, @type, @ext_id, @name, @search_name, @group_name, @logo, @url, @position, @attrs)
+  INSERT INTO staging_items (playlist_id, uid, type, ext_id, name, search_name, group_name, logo, url, position, attrs,
+    series_uid, series_key, series_title, series_search, season, episode)
+  VALUES (@playlist_id, @uid, @type, @ext_id, @name, @search_name, @group_name, @logo, @url, @position, @attrs,
+    @series_uid, @series_key, @series_title, @series_search, @season, @episode)
 `);
 
 const insertBatch = db.transaction((rows) => {
@@ -34,8 +39,10 @@ const insertBatch = db.transaction((rows) => {
 const swapPlaylistItems = db.transaction((playlistId) => {
   db.prepare('DELETE FROM items WHERE playlist_id = ?').run(playlistId);
   db.prepare(
-    `INSERT INTO items (playlist_id, uid, type, ext_id, name, search_name, group_name, logo, url, position, attrs)
-     SELECT playlist_id, uid, type, ext_id, name, search_name, group_name, logo, url, position, attrs
+    `INSERT INTO items (playlist_id, uid, type, ext_id, name, search_name, group_name, logo, url, position, attrs,
+       series_uid, series_key, series_title, series_search, season, episode)
+     SELECT playlist_id, uid, type, ext_id, name, search_name, group_name, logo, url, position, attrs,
+       series_uid, series_key, series_title, series_search, season, episode
      FROM staging_items WHERE playlist_id = ?`
   ).run(playlistId);
   db.prepare('DELETE FROM staging_items WHERE playlist_id = ?').run(playlistId);
@@ -52,6 +59,15 @@ const swapPlaylistItems = db.transaction((playlistId) => {
     `INSERT INTO groups (playlist_id, type, name, item_count)
      SELECT playlist_id, type, COALESCE(group_name, 'Sin grupo'), COUNT(*)
      FROM items WHERE playlist_id = ? GROUP BY playlist_id, type, group_name`
+  ).run(playlistId);
+
+  db.prepare('DELETE FROM series WHERE playlist_id = ?').run(playlistId);
+  db.prepare(
+    `INSERT INTO series (playlist_id, uid, series_key, title, search_title, group_name, logo, episode_count, season_count, position)
+     SELECT playlist_id, series_uid, series_key, MIN(series_title), MIN(series_search), MIN(group_name),
+            MIN(logo), COUNT(*), COUNT(DISTINCT season), MIN(position)
+     FROM items WHERE playlist_id = ? AND type = 'series' AND series_uid IS NOT NULL
+     GROUP BY playlist_id, series_uid, series_key`
   ).run(playlistId);
 
   db.prepare('DELETE FROM playlist_stats WHERE playlist_id = ?').run(playlistId);
@@ -158,6 +174,12 @@ const runSync = async (playlistId, { force = false } = {}) => {
         url: item.url,
         position: item.position,
         attrs: item.attrs && Object.keys(item.attrs).length ? JSON.stringify(item.attrs) : null,
+        series_uid: item.series ? seriesUid(playlistId, item.series.key) : null,
+        series_key: item.series ? item.series.key : null,
+        series_title: item.series ? item.series.title : null,
+        series_search: item.series ? item.series.searchTitle : null,
+        season: item.series ? item.series.season : null,
+        episode: item.series ? item.series.episode : null,
       });
       count += 1;
       if (batch.length >= BATCH_SIZE) {

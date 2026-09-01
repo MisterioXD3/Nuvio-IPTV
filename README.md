@@ -15,6 +15,8 @@ programada.
 - Sincronización incremental: `ETag`/`If-Modified-Since` y hash del contenido para no reescribir
   la base cuando la lista no cambió.
 - Clasificación automática en `tv`, `movie` y `series`, con géneros tomados de `group-title`.
+- **Series agrupadas**: los capítulos (`S01E02`, `1x02`, `Temporada 1 Capitulo 2`…) se unen en una
+  sola portada con sus temporadas y episodios dentro.
 - Búsqueda por lista mediante índice FTS5 con normalización de acentos.
 
 ## Rendimiento medido

@@ -71,6 +71,7 @@ const remove = (id) => {
   db.prepare('DELETE FROM playlists WHERE id = ?').run(id);
   db.prepare('DELETE FROM staging_items WHERE playlist_id = ?').run(id);
   db.prepare('DELETE FROM items_fts WHERE playlist_id = ?').run(id);
+  db.prepare('DELETE FROM series WHERE playlist_id = ?').run(id);
   bumpRevision();
 };
 
