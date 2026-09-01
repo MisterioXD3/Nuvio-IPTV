@@ -12,7 +12,8 @@ gratuitas, de mejor a peor para listas grandes.
 ## 1. Oracle Cloud Always Free (recomendada)
 
 VM ARM gratuita permanente (hasta 4 vCPU / 24 GB) con disco propio, ideal para listas de cientos
-de miles de entradas.
+de miles de entradas. Guía completa desde cero, incluida la creación de la cuenta y el HTTPS:
+**[ORACLE-SETUP.md](ORACLE-SETUP.md)**. Resumen:
 
 ```bash
 # En la VM (Ubuntu 22.04+)
