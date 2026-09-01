@@ -56,7 +56,8 @@ Manifest: `https://<app>.fly.dev/manifest.json`
 
 ## 3. Render (plan free)
 
-Conecta el repositorio en Render; `render.yaml` ya define el servicio Docker.
+Conecta el repositorio en Render; `render.yaml` ya define el servicio Docker. Guía completa desde
+cero: **[RENDER-SETUP.md](RENDER-SETUP.md)**.
 
 Limitaciones del plan gratuito: el servicio **duerme tras 15 min sin tráfico** (primer arranque
 ~50 s) y **no hay disco persistente**, así que la base SQLite se recrea y las listas se

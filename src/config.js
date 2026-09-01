@@ -26,4 +26,5 @@ module.exports = {
   syncTimeoutMs: num(process.env.SYNC_TIMEOUT_MS, 10 * 60 * 1000),
   defaultUserAgent: process.env.DEFAULT_USER_AGENT || 'VLC/3.0.20 LibVLC/3.0.20',
   adminToken: process.env.ADMIN_TOKEN || null,
+  seedPlaylists: process.env.PLAYLISTS_JSON || null,
 };

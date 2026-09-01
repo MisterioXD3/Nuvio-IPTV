@@ -14,6 +14,10 @@ services:
         value: "900000"
       - key: ADMIN_TOKEN
         generateValue: true
+      # Listas que se recrean en cada arranque (el plan free no conserva la base).
+      # Ejemplo: [{"name":"Mi lista","kind":"m3u","url":"https://ejemplo.com/lista.m3u"}]
+      - key: PLAYLISTS_JSON
+        sync: false
     # El plan gratuito de Render no admite discos persistentes: la base SQLite se
     # pierde en cada reinicio y las listas se vuelven a sincronizar al arrancar.
     # Con un plan de pago, descomenta el disco para conservarla:

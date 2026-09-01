@@ -3,11 +3,13 @@
 const config = require('./config');
 const { createApp } = require('./app');
 const scheduler = require('./services/scheduler');
+const { seedFromEnv } = require('./services/seed');
 
 const server = createApp().listen(config.port, config.host, () => {
   console.log(`[nuvio-iptv] escuchando en http://${config.host}:${config.port}`);
   console.log(`[nuvio-iptv] manifest: http://${config.host}:${config.port}/manifest.json`);
   console.log(`[nuvio-iptv] configuración: http://${config.host}:${config.port}/configure/`);
+  seedFromEnv();
   scheduler.start();
 });
 

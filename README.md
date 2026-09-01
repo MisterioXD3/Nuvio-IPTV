@@ -64,9 +64,10 @@ docker run -d -p 7010:7010 -v $PWD/data:/app/data --name nuvio-iptv nuvio-iptv
 
 ### Despliegue gratuito
 
-Nuvio necesita el addon en HTTPS público. Ver [DEPLOY.md](DEPLOY.md): Oracle Cloud Always Free
-con Cloudflare Tunnel (siempre encendido y con disco), Fly.io (`fly.toml` incluido, volumen
-persistente) o Render free (`render.yaml` incluido, duerme a los 15 min y sin disco).
+Nuvio necesita el addon en HTTPS público. Guías paso a paso:
+[Render](RENDER-SETUP.md) (la más rápida, sin tarjeta), [Fly.io](FLY-SETUP.md) o
+[Oracle Cloud Always Free](ORACLE-SETUP.md) (siempre encendido y con disco). Comparativa en
+[DEPLOY.md](DEPLOY.md).
 
 ## Configuración (variables de entorno)
 
@@ -81,6 +82,7 @@ persistente) o Render free (`render.yaml` incluido, duerme a los 15 min y sin di
 | `SYNC_TIMEOUT_MS` | `600000` | Tiempo máximo de una descarga |
 | `DEFAULT_USER_AGENT` | `VLC/3.0.20 LibVLC/3.0.20` | User-Agent para descargas y reproducción |
 | `ADMIN_TOKEN` | *(vacío)* | Si se define, la API `/api/*` exige `Authorization: Bearer <token>` |
+| `PLAYLISTS_JSON` | *(vacío)* | Listas a recrear al arrancar, para plataformas sin disco persistente |
 
 ## API de configuración
 
