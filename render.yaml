@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nuvio-iptv-addon
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATA_DIR
+        value: /app/data
+      - key: RESPONSE_CACHE_TTL_MS
+        value: "900000"
+      - key: ADMIN_TOKEN
+        generateValue: true
+    # El plan gratuito de Render no admite discos persistentes: la base SQLite se
+    # pierde en cada reinicio y las listas se vuelven a sincronizar al arrancar.
+    # Con un plan de pago, descomenta el disco para conservarla:
+    # disk:
+    #   name: data
+    #   mountPath: /app/data
+    #   sizeGB: 1

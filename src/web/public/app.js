@@ -15,12 +15,33 @@ const toast = (message, isError = false) => {
   toast.timer = setTimeout(() => el.classList.add('hidden'), 4000);
 };
 
-const api = async (path, options = {}) => {
-  const response = await fetch(`${apiBase}${path}`, {
-    headers: { 'content-type': 'application/json' },
+const TOKEN_KEY = 'nuvio-iptv-token';
+const getToken = () => window.localStorage.getItem(TOKEN_KEY) || '';
+
+const request = (path, options) => {
+  const token = getToken();
+  return fetch(`${apiBase}${path}`, {
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+};
+
+const api = async (path, options = {}) => {
+  let response = await request(path, options);
+  if (response.status === 401) {
+    const token = window.prompt('Este addon está protegido. Introduce el ADMIN_TOKEN:', getToken());
+    if (!token) throw new Error('No autorizado');
+    window.localStorage.setItem(TOKEN_KEY, token.trim());
+    response = await request(path, options);
+    if (response.status === 401) {
+      window.localStorage.removeItem(TOKEN_KEY);
+      throw new Error('Token incorrecto');
+    }
+  }
   if (response.status === 204) return null;
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || `Error ${response.status}`);

@@ -62,6 +62,12 @@ docker build -t nuvio-iptv .
 docker run -d -p 7010:7010 -v $PWD/data:/app/data --name nuvio-iptv nuvio-iptv
 ```
 
+### Despliegue gratuito
+
+Nuvio necesita el addon en HTTPS público. Ver [DEPLOY.md](DEPLOY.md): Oracle Cloud Always Free
+con Cloudflare Tunnel (siempre encendido y con disco), Fly.io (`fly.toml` incluido, volumen
+persistente) o Render free (`render.yaml` incluido, duerme a los 15 min y sin disco).
+
 ## Configuración (variables de entorno)
 
 | Variable | Por defecto | Descripción |
