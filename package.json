@@ -1,0 +1,22 @@
+{
+  "name": "nuvio-iptv-addon",
+  "version": "1.0.0",
+  "description": "Addon Stremio/Nuvio para múltiples listas IPTV grandes, con interfaz web de configuración y caché.",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/",
+    "generate:playlist": "node scripts/generate-playlist.js",
+    "benchmark": "node scripts/benchmark.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "compression": "^1.7.5",
+    "express": "^4.21.2"
+  }
+}

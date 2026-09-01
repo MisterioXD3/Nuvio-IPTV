@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nuvio IPTV · Configuración</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Nuvio IPTV</h1>
+      <div class="manifest">
+        <label for="manifest-url">Manifest para Nuvio</label>
+        <div class="row">
+          <input id="manifest-url" readonly />
+          <button id="copy-manifest" type="button">Copiar</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="stats" id="stats"></section>
+
+    <main>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Listas</h2>
+          <span class="hint">Arrastra para cambiar el orden en que Nuvio muestra los catálogos.</span>
+        </div>
+        <div id="playlists" class="playlists"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Añadir lista</h2>
+        <form id="add-form" class="form">
+          <label>Nombre<input name="name" required placeholder="Mi proveedor" /></label>
+          <label>Tipo
+            <select name="kind">
+              <option value="m3u">M3U / M3U8</option>
+              <option value="xtream">Xtream Codes</option>
+            </select>
+          </label>
+          <label class="wide">URL<input name="url" required placeholder="https://servidor/lista.m3u" /></label>
+          <label>Usuario (Xtream)<input name="username" autocomplete="off" /></label>
+          <label>Contraseña (Xtream)<input name="password" type="password" autocomplete="new-password" /></label>
+          <label>Refresco (horas)<input name="refreshHours" type="number" min="0" step="0.5" value="12" /></label>
+          <label>Vencimiento<input name="expiresAt" type="date" /></label>
+          <label class="wide">User-Agent<input name="userAgent" placeholder="VLC/3.0.20 LibVLC/3.0.20" /></label>
+          <button type="submit">Añadir y sincronizar</button>
+        </form>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

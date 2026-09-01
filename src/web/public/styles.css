@@ -1,0 +1,127 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2330;
+  --border: #263041;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #4c8dff;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.topbar h1 { margin: 0; font-size: 20px; }
+.manifest label { display: block; font-size: 12px; color: var(--muted); }
+.row { display: flex; gap: 8px; }
+.manifest input { width: min(420px, 60vw); }
+
+input, select, button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+button { cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #05070d; font-weight: 600; }
+button.danger:hover { border-color: var(--err); color: var(--err); }
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 130px;
+}
+.stat b { display: block; font-size: 20px; }
+.stat span { color: var(--muted); font-size: 12px; }
+
+main { display: grid; gap: 16px; padding: 0 24px 32px; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); }
+@media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.panel h2 { margin: 0 0 12px; font-size: 16px; }
+.panel-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: 12px; }
+
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.form label.wide { grid-column: 1 / -1; }
+.form input, .form select { color: var(--text); }
+.form button { grid-column: 1 / -1; background: var(--accent); border-color: var(--accent); color: #05070d; font-weight: 600; }
+
+.playlists { display: grid; gap: 10px; }
+
+.card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.card.dragging { opacity: 0.4; }
+.card.drop-target { border-color: var(--accent); }
+.card.disabled { opacity: 0.6; }
+
+.card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.drag { cursor: grab; color: var(--muted); }
+.card-title { font-weight: 600; }
+.move { padding: 2px 8px; line-height: 1; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.badge.ok { color: var(--ok); border-color: var(--ok); }
+.badge.warn { color: var(--warn); border-color: var(--warn); }
+.badge.err { color: var(--err); border-color: var(--err); }
+.spacer { flex: 1; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; }
+.meta b { color: var(--text); font-weight: 600; }
+.resources { display: flex; flex-wrap: wrap; gap: 8px; }
+.resource { background: #0f1622; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+.error { color: var(--err); font-size: 12px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  max-width: 60vw;
+}
+.toast.hidden { display: none; }
+.toast.error { border-color: var(--err); }
