@@ -9,7 +9,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
+    "cf:d1:init": "wrangler d1 execute nuvio-iptv --remote --file=cloudflare/schema.sql",
     "generate:playlist": "node scripts/generate-playlist.js",
     "benchmark": "node scripts/benchmark.js"
   },
