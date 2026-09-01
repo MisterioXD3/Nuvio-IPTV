@@ -42,7 +42,7 @@ Manifest para Nuvio: `https://iptv.tu-dominio.com/manifest.json`
 ## 2. Fly.io
 
 Incluye `fly.toml` con volumen persistente y suspensión automática (arranca en ~1 s al recibir
-una petición).
+una petición). Guía completa desde cero: **[FLY-SETUP.md](FLY-SETUP.md)**. Resumen:
 
 ```bash
 fly auth login
