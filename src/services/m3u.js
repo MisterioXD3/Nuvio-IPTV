@@ -38,6 +38,51 @@ const normalizeName = (name) =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+// Episode markers used by IPTV providers: "S01 E02", "S01E02", "1x02",
+// "Temporada 1 Capitulo 2", "T1 Ep2"...
+const EPISODE_PATTERNS = [
+  /^(.*?)[\s._-]*\b[sS](\d{1,3})[\s._-]*[eExX](\d{1,4})\b[\s._-]*(.*)$/,
+  /^(.*?)[\s._-]+(\d{1,3})[xX](\d{1,4})\b[\s._-]*(.*)$/,
+  /^(.*?)[\s._-]*\b(?:temporadas?|seasons?|temp|t)[\s._-]*(\d{1,3})[\s._-]*(?:capitulos?|cap|episodios?|episodes?|ep|e)[\s._-]*(\d{1,4})\b[\s._-]*(.*)$/i,
+];
+
+const cleanTitle = (value) => value.replace(/[\s._-]+$/, '').replace(/^[\s._-]+/, '').trim();
+
+/**
+ * Splits an episode entry into series title, season and episode so every
+ * chapter of a show collapses into a single poster.
+ */
+const parseEpisode = (name) => {
+  for (const pattern of EPISODE_PATTERNS) {
+    const match = pattern.exec(name);
+    if (!match) continue;
+    const title = cleanTitle(match[1]);
+    if (!title) continue;
+    return {
+      seriesTitle: title,
+      season: Number(match[2]),
+      episode: Number(match[3]),
+      episodeTitle: cleanTitle(match[4] || '') || null,
+    };
+  }
+  return null;
+};
+
+// Entries without a recognizable episode marker become a one-episode show, so
+// nothing disappears from the series catalog.
+const seriesInfo = (episode, name, group) => {
+  const title = episode ? episode.seriesTitle : name;
+  const key = normalizeName(title) || normalizeName(name);
+  return {
+    key: `${key}|${group || ''}`,
+    title,
+    searchTitle: key,
+    season: episode ? episode.season : 1,
+    episode: episode ? episode.episode : 1,
+    episodeTitle: episode ? episode.episodeTitle : null,
+  };
+};
+
 /**
  * Streams an M3U playlist of arbitrary size, yielding one parsed entry at a
  * time. Only a single line is held in memory beyond the incoming chunk, so a
@@ -82,8 +127,11 @@ async function* parseM3u(source) {
     const userAgent = pendingUserAgent;
     pendingUserAgent = null;
 
+    const type = detectType(group, line);
+    const episode = type === 'series' ? parseEpisode(name) : null;
+
     return {
-      type: detectType(group, line),
+      type,
       extId: attrs['tvg-id'] || null,
       name,
       searchName: normalizeName(name),
@@ -92,6 +140,7 @@ async function* parseM3u(source) {
       url: line,
       position: position++,
       attrs: userAgent ? { ...attrs, 'http-user-agent': userAgent } : attrs,
+      series: type === 'series' ? seriesInfo(episode, name, group) : null,
     };
   };
 
@@ -112,4 +161,4 @@ async function* parseM3u(source) {
   }
 }
 
-module.exports = { parseM3u, normalizeName, detectType };
+module.exports = { parseM3u, normalizeName, detectType, parseEpisode };

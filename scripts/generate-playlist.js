@@ -22,8 +22,11 @@ for (let i = 0; i < count; i += 1) {
     : isSeries
       ? `http://example.com/series/user/pass/${i}.mkv`
       : `http://example.com/live/user/pass/${i}.ts`;
+  const name = isSeries
+    ? `Serie ${Math.floor(i / 40)} S${String((Math.floor(i / 10) % 4) + 1).padStart(2, '0')}E${String((i % 10) + 1).padStart(2, '0')}`
+    : `Canal ${i}`;
   stream.write(
-    `#EXTINF:-1 tvg-id="ch${i}" tvg-name="Canal ${i}" tvg-logo="http://example.com/logo/${i}.png" group-title="${group}",Canal ${i}\n${url}\n`
+    `#EXTINF:-1 tvg-id="ch${i}" tvg-name="${name}" tvg-logo="http://example.com/logo/${i}.png" group-title="${group}",${name}\n${url}\n`
   );
 }
 

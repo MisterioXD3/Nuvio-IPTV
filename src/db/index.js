@@ -54,10 +54,17 @@ CREATE TABLE IF NOT EXISTS items (
   logo TEXT,
   url TEXT NOT NULL,
   position INTEGER NOT NULL,
-  attrs TEXT
+  attrs TEXT,
+  series_uid TEXT,
+  series_key TEXT,
+  series_title TEXT,
+  series_search TEXT,
+  season INTEGER,
+  episode INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_items_playlist_type_pos ON items (playlist_id, type, position);
+CREATE INDEX IF NOT EXISTS idx_items_series ON items (series_uid, season, episode);
 CREATE INDEX IF NOT EXISTS idx_items_playlist_group ON items (playlist_id, type, group_name, position);
 CREATE INDEX IF NOT EXISTS idx_items_search ON items (search_name);
 CREATE INDEX IF NOT EXISTS idx_items_uid ON items (uid);
@@ -75,7 +82,13 @@ CREATE TABLE IF NOT EXISTS staging_items (
   logo TEXT,
   url TEXT NOT NULL,
   position INTEGER NOT NULL,
-  attrs TEXT
+  attrs TEXT,
+  series_uid TEXT,
+  series_key TEXT,
+  series_title TEXT,
+  series_search TEXT,
+  season INTEGER,
+  episode INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_staging_playlist ON staging_items (playlist_id);
@@ -105,11 +118,51 @@ CREATE TABLE IF NOT EXISTS playlist_stats (
   PRIMARY KEY (playlist_id, type)
 );
 
+-- One row per show, rebuilt on every sync, so the series catalog shows a single
+-- poster per title instead of one per episode.
+CREATE TABLE IF NOT EXISTS series (
+  playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+  uid TEXT NOT NULL,
+  series_key TEXT NOT NULL,
+  title TEXT NOT NULL,
+  search_title TEXT NOT NULL,
+  group_name TEXT,
+  logo TEXT,
+  episode_count INTEGER NOT NULL,
+  season_count INTEGER NOT NULL,
+  position INTEGER NOT NULL,
+  PRIMARY KEY (playlist_id, series_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_series_playlist_pos ON series (playlist_id, position);
+CREATE INDEX IF NOT EXISTS idx_series_group ON series (playlist_id, group_name, position);
+CREATE INDEX IF NOT EXISTS idx_series_search ON series (playlist_id, search_title);
+CREATE INDEX IF NOT EXISTS idx_series_uid ON series (uid);
+
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 `);
+
+// Adds columns introduced after a database was first created.
+const addMissingColumns = (table, columns) => {
+  const existing = new Set(db.pragma(`table_info(${table})`).map((column) => column.name));
+  for (const [name, type] of columns) {
+    if (!existing.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+  }
+};
+
+const SERIES_COLUMNS = [
+  ['series_uid', 'TEXT'],
+  ['series_key', 'TEXT'],
+  ['series_title', 'TEXT'],
+  ['series_search', 'TEXT'],
+  ['season', 'INTEGER'],
+  ['episode', 'INTEGER'],
+];
+addMissingColumns('items', SERIES_COLUMNS);
+addMissingColumns('staging_items', SERIES_COLUMNS);
 
 const getMetaStmt = db.prepare('SELECT value FROM meta WHERE key = ?');
 const setMetaStmt = db.prepare(
