@@ -61,6 +61,24 @@ const searchOne = async (type, query) => {
   };
 };
 
+const tmdbStatus = () => {
+  const totals = db.prepare(`SELECT type, COUNT(*) AS total, SUM(CASE WHEN tmdb_id IS NOT NULL THEN 1 ELSE 0 END) AS matched FROM items WHERE type IN ('movie', 'series') GROUP BY type`).all();
+  return {
+    configured: tmdbConfigured(),
+    languages: config.tmdbLanguages,
+    maxMatchesPerSync: config.tmdbMaxMatchesPerSync,
+    totals,
+  };
+};
+
+const enrichAll = async () => {
+  const results = [];
+  for (const playlist of db.prepare('SELECT id FROM playlists WHERE enabled = 1 ORDER BY position').all()) {
+    results.push({ playlistId: playlist.id, ...(await enrichPlaylist(playlist.id)) });
+  }
+  return results;
+};
+
 const enrichPlaylist = async (playlistId) => {
   if (!tmdbConfigured()) return { status: 'skipped', reason: 'TMDB_API_KEY o TMDB_ACCESS_TOKEN no configurado' };
   const max = config.tmdbMaxMatchesPerSync;
@@ -96,4 +114,4 @@ const enrichPlaylist = async (playlistId) => {
   return { status: 'ok', candidates: rows.length, matched };
 };
 
-module.exports = { enrichPlaylist, tmdbConfigured };
+module.exports = { enrichPlaylist, enrichAll, tmdbConfigured, tmdbStatus };
