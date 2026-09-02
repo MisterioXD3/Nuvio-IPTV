@@ -6,6 +6,7 @@ const config = require('../config');
 const playlists = require('../db/playlists');
 const catalog = require('../services/catalog');
 const { syncPlaylist, isSyncing } = require('../services/sync');
+const { enrichAll, tmdbStatus } = require('../services/tmdb');
 const { db } = require('../db');
 
 const router = express.Router();
@@ -56,6 +57,18 @@ const present = (playlist) => {
     totalItems: stats.reduce((sum, row) => sum + row.item_count, 0),
   };
 };
+
+router.get('/tmdb', (req, res) => {
+  res.json(tmdbStatus());
+});
+
+router.post('/tmdb/enrich', async (req, res) => {
+  try {
+    return res.json({ results: await enrichAll(), status: tmdbStatus() });
+  } catch (error) {
+    return res.status(502).json({ error: error.message, status: tmdbStatus() });
+  }
+});
 
 router.get('/playlists', (req, res) => {
   res.json({ playlists: playlists.list().map(present) });

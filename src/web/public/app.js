@@ -228,6 +228,25 @@ const attachDragHandlers = (container) => {
   });
 };
 
+const renderTmdb = (status) => {
+  const badge = $('#tmdb-badge');
+  const statusEl = $('#tmdb-status');
+  if (!status.configured) {
+    badge.textContent = 'sin configurar';
+    badge.className = 'badge warn';
+    statusEl.innerHTML = '<div class="error">Añade <b>TMDB_API_KEY</b> o <b>TMDB_ACCESS_TOKEN</b> en las variables de entorno del servidor.</div>';
+    $('#enrich-tmdb').disabled = true;
+    return;
+  }
+  badge.textContent = 'activo';
+  badge.className = 'badge ok';
+  $('#enrich-tmdb').disabled = false;
+  const rows = status.totals.length
+    ? status.totals.map((row) => `<div class="tmdb-row"><span>${TYPE_LABEL[row.type] || row.type}</span><b>${formatNumber(row.matched)} / ${formatNumber(row.total)}</b></div>`).join('')
+    : '<span class="hint">Todavía no hay películas o series indexadas.</span>';
+  statusEl.innerHTML = `<div class="tmdb-grid">${rows}</div><div class="hint">Idiomas: ${status.languages.join(', ')} · máximo por sincronización: ${formatNumber(status.maxMatchesPerSync)}</div>`;
+};
+
 const renderStats = (stats) => {
   $('#stats').innerHTML = `
     <div class="stat"><b>${formatNumber(stats.totalItems)}</b><span>elementos indexados</span></div>
@@ -241,7 +260,7 @@ const renderStats = (stats) => {
 };
 
 const refresh = async () => {
-  const [listResponse, stats] = await Promise.all([api('/playlists'), api('/stats')]);
+  const [listResponse, stats, tmdb] = await Promise.all([api('/playlists'), api('/stats'), api('/tmdb')]);
   playlists = listResponse.playlists;
   const container = $('#playlists');
   container.innerHTML = '';
@@ -250,7 +269,21 @@ const refresh = async () => {
   }
   playlists.forEach((playlist) => container.appendChild(renderCard(playlist)));
   renderStats(stats);
+  renderTmdb(tmdb);
 };
+
+$('#enrich-tmdb').addEventListener('click', async (event) => {
+  event.target.disabled = true;
+  toast('Actualizando asociaciones TMDb…');
+  try {
+    await api('/tmdb/enrich', { method: 'POST', body: {} });
+    toast('Asociaciones TMDb actualizadas');
+    await refresh();
+  } catch (error) {
+    toast(error.message, true);
+    await refresh();
+  }
+});
 
 $('#add-form').addEventListener('submit', async (event) => {
   event.preventDefault();

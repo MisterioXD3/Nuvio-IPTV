@@ -30,6 +30,16 @@
       </section>
 
       <section class="panel">
+        <div class="panel-head">
+          <h2>TMDb y búsquedas externas</h2>
+          <span id="tmdb-badge" class="badge">comprobando…</span>
+        </div>
+        <div id="tmdb-status" class="tmdb-status"></div>
+        <p class="hint">Las películas y series se asocian con títulos originales, españoles y alternativos para mejorar las búsquedas. La clave se configura como variable de entorno del servidor.</p>
+        <button id="enrich-tmdb" class="primary" type="button">Actualizar asociaciones TMDb</button>
+      </section>
+
+      <section class="panel">
         <h2>Añadir lista</h2>
         <form id="add-form" class="form">
           <label>Nombre<input name="name" required placeholder="Mi proveedor" /></label>
