@@ -14,13 +14,13 @@ const responseCache = new LruCache({
 const TYPE_LABEL = { tv: 'TV', movie: 'Películas', series: 'Series' };
 
 const selectByGroup = db.prepare(`
-  SELECT uid, name, logo, group_name, type FROM items
+  SELECT uid, name, logo, group_name, type, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM items
   WHERE playlist_id = ? AND type = ? AND group_name = ?
   ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectByType = db.prepare(`
-  SELECT uid, name, logo, group_name, type FROM items
+  SELECT uid, name, logo, group_name, type, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM items
   WHERE playlist_id = ? AND type = ?
   ORDER BY position LIMIT ? OFFSET ?
 `);
@@ -39,17 +39,17 @@ const selectByUid = db.prepare(`
 `);
 
 const selectSeriesByType = db.prepare(`
-  SELECT uid, title, logo, group_name, episode_count, season_count FROM series
+  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM series
   WHERE playlist_id = ? ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectSeriesByGroup = db.prepare(`
-  SELECT uid, title, logo, group_name, episode_count, season_count FROM series
+  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM series
   WHERE playlist_id = ? AND group_name = ? ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectSeriesSearch = db.prepare(`
-  SELECT uid, title, logo, group_name, episode_count, season_count FROM series
+  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM series
   WHERE playlist_id = ? AND search_title LIKE ? ORDER BY position LIMIT ? OFFSET ?
 `);
 
@@ -106,25 +106,28 @@ const describeCatalogs = () =>
     }))
   );
 
+const externalId = (row, type) => row.tmdb_id ? `tmdb:${type}:${row.tmdb_id}` : `iptv:${row.uid}`;
 const toSeriesPreview = (row) => ({
-  id: `iptv:${row.uid}`,
+  id: externalId(row, 'series'),
   type: 'series',
-  name: row.title,
+  name: row.tmdb_title || row.title,
   poster: row.logo || undefined,
   posterShape: 'poster',
   logo: row.logo || undefined,
   genres: row.group_name ? [row.group_name] : undefined,
   description: `${row.episode_count} episodio(s) · ${row.season_count} temporada(s)`,
+  links: row.tmdb_id ? [{ name: 'tmdb', category: 'series', url: `https://www.themoviedb.org/tv/${row.tmdb_id}` }] : undefined,
 });
 
 const toMetaPreview = (row) => ({
-  id: `iptv:${row.uid}`,
+  id: externalId(row, row.type),
   type: row.type,
-  name: row.name,
+  name: row.tmdb_title || row.name,
   poster: row.logo || undefined,
   posterShape: row.type === 'tv' ? 'square' : 'poster',
   logo: row.logo || undefined,
   genres: row.group_name ? [row.group_name] : undefined,
+  links: row.tmdb_id ? [{ name: 'tmdb', category: row.type, url: `https://www.themoviedb.org/${row.type === 'movie' ? 'movie' : 'tv'}/${row.tmdb_id}` }] : undefined,
 });
 
 const getCatalog = ({ id, type, genre, search, skip }) => {
@@ -167,20 +170,21 @@ const getCatalog = ({ id, type, genre, search, skip }) => {
 
 const getMeta = (type, id) => {
   const uid = id.startsWith('iptv:') ? id.slice(5) : null;
-  if (!uid) return null;
-  const cacheKey = `meta:${getRevision()}:${uid}`;
+  const tmdb = /^tmdb:(movie|series):(\d+)$/.exec(id);
+  if (!uid && !tmdb) return null;
+  const cacheKey = `meta:${getRevision()}:${id}`;
   const cached = responseCache.get(cacheKey);
   if (cached) return cached;
 
   if (type === 'series') {
-    const show = selectSeriesByUid.get(uid);
+    const show = tmdb ? db.prepare('SELECT s.*, p.name AS playlist_name FROM series s JOIN playlists p ON p.id = s.playlist_id WHERE s.tmdb_id = ? LIMIT 1').get(Number(tmdb[2])) : selectSeriesByUid.get(uid);
     if (show) {
-      const episodes = selectEpisodes.all(uid);
+      const episodes = selectEpisodes.all(show.uid);
       const meta = {
         meta: {
-          id: `iptv:${show.uid}`,
+          id: externalId(show, 'series'),
           type: 'series',
-          name: show.title,
+          name: show.tmdb_title || show.title,
           poster: show.logo || undefined,
           posterShape: 'poster',
           background: show.logo || undefined,
@@ -201,14 +205,14 @@ const getMeta = (type, id) => {
     }
   }
 
-  const row = selectByUid.get(uid);
+  const row = tmdb ? db.prepare('SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent FROM items i JOIN playlists p ON p.id = i.playlist_id WHERE i.tmdb_id = ? AND i.type = ? LIMIT 1').get(Number(tmdb[2]), type) : selectByUid.get(uid);
   if (!row || row.type !== type) return null;
 
   const meta = {
     meta: {
-      id: `iptv:${row.uid}`,
+      id: externalId(row, row.type),
       type: row.type,
-      name: row.name,
+      name: row.tmdb_title || row.name,
       poster: row.logo || undefined,
       posterShape: row.type === 'tv' ? 'square' : 'poster',
       background: row.logo || undefined,
@@ -229,12 +233,13 @@ const episodeTitle = (row, showTitle) => {
 
 const getStreams = (type, id) => {
   const uid = id.startsWith('iptv:') ? id.slice(5) : null;
-  if (!uid) return null;
-  const cacheKey = `stream:${getRevision()}:${uid}`;
+  const tmdb = /^tmdb:(movie|series):(\d+)$/.exec(id);
+  if (!uid && !tmdb) return null;
+  const cacheKey = `stream:${getRevision()}:${id}`;
   const cached = responseCache.get(cacheKey);
   if (cached) return cached;
 
-  const row = selectByUid.get(uid);
+  const row = tmdb ? db.prepare('SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent FROM items i JOIN playlists p ON p.id = i.playlist_id WHERE i.tmdb_id = ? AND i.type = ? LIMIT 1').get(Number(tmdb[2]), type) : selectByUid.get(uid);
   if (!row || row.type !== type) return null;
 
   const attrs = row.attrs ? JSON.parse(row.attrs) : {};

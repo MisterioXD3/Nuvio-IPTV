@@ -161,8 +161,17 @@ const SERIES_COLUMNS = [
   ['season', 'INTEGER'],
   ['episode', 'INTEGER'],
 ];
+const TMDB_COLUMNS = [
+  ['tmdb_id', 'INTEGER'],
+  ['tmdb_type', 'TEXT'],
+  ['tmdb_title', 'TEXT'],
+  ['tmdb_original_title', 'TEXT'],
+  ['tmdb_titles', 'TEXT'],
+];
 addMissingColumns('items', SERIES_COLUMNS);
 addMissingColumns('staging_items', SERIES_COLUMNS);
+addMissingColumns('items', TMDB_COLUMNS);
+addMissingColumns('series', TMDB_COLUMNS);
 
 const getMetaStmt = db.prepare('SELECT value FROM meta WHERE key = ?');
 const setMetaStmt = db.prepare(

@@ -8,6 +8,7 @@ const { db, bumpRevision } = require('../db');
 const playlists = require('../db/playlists');
 const { parseM3u } = require('./m3u');
 const xtream = require('./xtream');
+const { enrichPlaylist } = require('./tmdb');
 
 const BATCH_SIZE = 5000;
 
@@ -142,6 +143,7 @@ const runSync = async (playlistId, { force = false } = {}) => {
         durationMs: Date.now() - startedAt,
         expiresAt,
       });
+      enrichPlaylist(playlistId).catch((error) => console.warn(`[nuvio-iptv] enriquecimiento TMDb fallido: ${error.message}`));
       return { status: 'unchanged', items: 0, durationMs: Date.now() - startedAt };
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} al descargar la lista`);
@@ -201,6 +203,7 @@ const runSync = async (playlistId, { force = false } = {}) => {
         bytes,
         expiresAt,
       });
+      enrichPlaylist(playlistId).catch((error) => console.warn(`[nuvio-iptv] enriquecimiento TMDb fallido: ${error.message}`));
       return { status: 'unchanged', items: count, durationMs: Date.now() - startedAt };
     }
 
@@ -216,6 +219,7 @@ const runSync = async (playlistId, { force = false } = {}) => {
       expiresAt,
     });
     bumpRevision();
+    enrichPlaylist(playlistId).catch((error) => console.warn(`[nuvio-iptv] enriquecimiento TMDb fallido: ${error.message}`));
     return { status: 'ok', items: count, durationMs: Date.now() - startedAt };
   } catch (error) {
     db.prepare('DELETE FROM staging_items WHERE playlist_id = ?').run(playlistId);

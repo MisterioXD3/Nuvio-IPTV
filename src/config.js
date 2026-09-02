@@ -27,4 +27,10 @@ module.exports = {
   defaultUserAgent: process.env.DEFAULT_USER_AGENT || 'VLC/3.0.20 LibVLC/3.0.20',
   adminToken: process.env.ADMIN_TOKEN || null,
   seedPlaylists: process.env.PLAYLISTS_JSON || null,
+  tmdbApiKey: process.env.TMDB_API_KEY || null,
+  tmdbAccessToken: process.env.TMDB_ACCESS_TOKEN || null,
+  tmdbLanguages: (process.env.TMDB_LANGUAGES || 'es-ES,en-US,pt-BR,fr-FR,de-DE,it-IT').split(',').map((value) => value.trim()).filter(Boolean),
+  tmdbMaxMatchesPerSync: num(process.env.TMDB_MAX_MATCHES_PER_SYNC, 250),
+  tmdbMinMatchScore: num(process.env.TMDB_MIN_MATCH_SCORE, 60),
+  tmdbRequestDelayMs: num(process.env.TMDB_REQUEST_DELAY_MS, 50),
 };

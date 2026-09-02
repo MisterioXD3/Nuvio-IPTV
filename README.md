@@ -15,6 +15,7 @@ programada.
 - Sincronización incremental: `ETag`/`If-Modified-Since` y hash del contenido para no reescribir
   la base cuando la lista no cambió.
 - Clasificación automática en `tv`, `movie` y `series`, con géneros tomados de `group-title`.
+- Películas y series pueden enriquecerse opcionalmente con TMDb: sus IDs externos, portadas, enlaces y títulos originales/traducidos se conservan, y los aliases se incorporan al índice de búsqueda para mejorar la precisión multilingüe.
 - **Series agrupadas**: los capítulos (`S01E02`, `1x02`, `Temporada 1 Capitulo 2`…) se unen en una
   sola portada con sus temporadas y episodios dentro.
 - Búsqueda por lista mediante índice FTS5 con normalización de acentos.
@@ -85,6 +86,12 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `DEFAULT_USER_AGENT` | `VLC/3.0.20 LibVLC/3.0.20` | User-Agent para descargas y reproducción |
 | `ADMIN_TOKEN` | *(vacío)* | Si se define, la API `/api/*` exige `Authorization: Bearer <token>` |
 | `PLAYLISTS_JSON` | *(vacío)* | Listas a recrear al arrancar, para plataformas sin disco persistente |
+| `TMDB_API_KEY` | *(vacío)* | Clave v3 de TMDb; activa el enriquecimiento opcional de películas y series |
+| `TMDB_ACCESS_TOKEN` | *(vacío)* | Token Bearer v4 de TMDb; alternativa a `TMDB_API_KEY` |
+| `TMDB_LANGUAGES` | `es-ES,en-US,pt-BR,fr-FR,de-DE,it-IT` | Idiomas usados para resolver títulos traducidos y originales |
+| `TMDB_MAX_MATCHES_PER_SYNC` | `250` | Máximo de títulos candidatos enriquecidos por sincronización |
+| `TMDB_MIN_MATCH_SCORE` | `60` | Umbral conservador de coincidencia de títulos |
+| `TMDB_REQUEST_DELAY_MS` | `50` | Pausa entre solicitudes a TMDb |
 
 ## API de configuración
 
