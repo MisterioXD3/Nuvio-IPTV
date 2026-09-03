@@ -75,6 +75,11 @@ const searchOne = async (type, query, credentials = {}) => {
     originalTitle: resultOriginalTitle(best),
     aliases,
     poster: best.poster_path ? `https://image.tmdb.org/t/p/w500${best.poster_path}` : null,
+    backdrop: best.backdrop_path ? `https://image.tmdb.org/t/p/w1280${best.backdrop_path}` : null,
+    overview: best.overview || null,
+    year: (best.release_date || best.first_air_date || '').slice(0, 4) || null,
+    rating: best.vote_average || null,
+    genres: Array.isArray(best.genre_ids) ? best.genre_ids : [],
   };
 };
 
@@ -145,10 +150,10 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
       const aliasesJson = JSON.stringify(aliases);
       const searchable = normalizeName([row.lookup_name, ...aliases].join(' '));
       if (row.type === 'series' && row.series_uid) {
-        db.prepare(`UPDATE items SET tmdb_id = ?, tmdb_type = ?, tmdb_title = ?, tmdb_original_title = ?, tmdb_titles = ?, search_name = ? WHERE series_uid = ?`).run(match.id, match.type, match.title, match.originalTitle, aliasesJson, searchable, row.series_uid);
-        db.prepare(`UPDATE series SET tmdb_id = ?, tmdb_type = ?, tmdb_title = ?, tmdb_original_title = ?, tmdb_titles = ?, search_title = ?, logo = COALESCE(logo, ?) WHERE uid = ?`).run(match.id, match.type, match.title, match.originalTitle, aliasesJson, searchable, match.poster, row.series_uid);
+        db.prepare(`UPDATE items SET tmdb_id = ?, tmdb_type = ?, tmdb_title = ?, tmdb_original_title = ?, tmdb_titles = ?, tmdb_poster = ?, tmdb_backdrop = ?, tmdb_overview = ?, tmdb_year = ?, tmdb_rating = ?, tmdb_genres = ?, search_name = ? WHERE series_uid = ?`).run(match.id, match.type, match.title, match.originalTitle, aliasesJson, match.poster, match.backdrop, match.overview, match.year ? Number(match.year) : null, match.rating, JSON.stringify(match.genres), searchable, row.series_uid);
+        db.prepare(`UPDATE series SET tmdb_id = ?, tmdb_type = ?, tmdb_title = ?, tmdb_original_title = ?, tmdb_titles = ?, tmdb_poster = ?, tmdb_backdrop = ?, tmdb_overview = ?, tmdb_year = ?, tmdb_rating = ?, tmdb_genres = ?, search_title = ?, logo = COALESCE(logo, ?) WHERE uid = ?`).run(match.id, match.type, match.title, match.originalTitle, aliasesJson, match.poster, match.backdrop, match.overview, match.year ? Number(match.year) : null, match.rating, JSON.stringify(match.genres), searchable, match.poster, row.series_uid);
       } else {
-        db.prepare(`UPDATE items SET tmdb_id = ?, tmdb_type = ?, tmdb_title = ?, tmdb_original_title = ?, tmdb_titles = ?, search_name = ? WHERE playlist_id = ? AND type = ? AND name = ?`).run(match.id, match.type, match.title, match.originalTitle, aliasesJson, searchable, playlistId, row.type, row.lookup_name);
+        db.prepare(`UPDATE items SET tmdb_id = ?, tmdb_type = ?, tmdb_title = ?, tmdb_original_title = ?, tmdb_titles = ?, tmdb_poster = ?, tmdb_backdrop = ?, tmdb_overview = ?, tmdb_year = ?, tmdb_rating = ?, tmdb_genres = ?, search_name = ? WHERE playlist_id = ? AND type = ? AND name = ?`).run(match.id, match.type, match.title, match.originalTitle, aliasesJson, match.poster, match.backdrop, match.overview, match.year ? Number(match.year) : null, match.rating, JSON.stringify(match.genres), searchable, playlistId, row.type, row.lookup_name);
       }
       matched += 1;
     } catch (error) {

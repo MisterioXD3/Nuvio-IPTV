@@ -175,6 +175,12 @@ const TMDB_COLUMNS = [
   ['tmdb_title', 'TEXT'],
   ['tmdb_original_title', 'TEXT'],
   ['tmdb_titles', 'TEXT'],
+  ['tmdb_poster', 'TEXT'],
+  ['tmdb_backdrop', 'TEXT'],
+  ['tmdb_overview', 'TEXT'],
+  ['tmdb_year', 'INTEGER'],
+  ['tmdb_rating', 'REAL'],
+  ['tmdb_genres', 'TEXT'],
 ];
 addMissingColumns('items', SERIES_COLUMNS);
 addMissingColumns('staging_items', SERIES_COLUMNS);

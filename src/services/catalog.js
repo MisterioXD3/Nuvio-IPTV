@@ -15,19 +15,19 @@ const responseCache = new LruCache({
 const TYPE_LABEL = { tv: 'TV', movie: 'Películas', series: 'Series' };
 
 const selectByGroup = db.prepare(`
-  SELECT uid, name, logo, group_name, type, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM items
+  SELECT uid, name, logo, group_name, type, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles, tmdb_poster, tmdb_backdrop, tmdb_overview, tmdb_year, tmdb_rating, tmdb_genres FROM items
   WHERE playlist_id = ? AND type = ? AND group_name = ?
   ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectByType = db.prepare(`
-  SELECT uid, name, logo, group_name, type, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM items
+  SELECT uid, name, logo, group_name, type, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles, tmdb_poster, tmdb_backdrop, tmdb_overview, tmdb_year, tmdb_rating, tmdb_genres FROM items
   WHERE playlist_id = ? AND type = ?
   ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectSearch = db.prepare(`
-  SELECT i.uid, i.name, i.logo, i.group_name, i.type FROM items_fts f
+  SELECT i.uid, i.name, i.logo, i.group_name, i.type, i.tmdb_id, i.tmdb_type, i.tmdb_title, i.tmdb_original_title, i.tmdb_titles, i.tmdb_poster, i.tmdb_backdrop, i.tmdb_overview, i.tmdb_year, i.tmdb_rating, i.tmdb_genres FROM items_fts f
   JOIN items i ON i.id = f.item_id
   WHERE items_fts MATCH ? AND f.playlist_id = ? AND i.type = ?
   ORDER BY i.position LIMIT ? OFFSET ?
@@ -40,17 +40,17 @@ const selectByUid = db.prepare(`
 `);
 
 const selectSeriesByType = db.prepare(`
-  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM series
+  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles, tmdb_poster, tmdb_backdrop, tmdb_overview, tmdb_year, tmdb_rating, tmdb_genres FROM series
   WHERE playlist_id = ? ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectSeriesByGroup = db.prepare(`
-  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM series
+  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles, tmdb_poster, tmdb_backdrop, tmdb_overview, tmdb_year, tmdb_rating, tmdb_genres FROM series
   WHERE playlist_id = ? AND group_name = ? ORDER BY position LIMIT ? OFFSET ?
 `);
 
 const selectSeriesSearch = db.prepare(`
-  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles FROM series
+  SELECT uid, title, logo, group_name, episode_count, season_count, tmdb_id, tmdb_type, tmdb_title, tmdb_original_title, tmdb_titles, tmdb_poster, tmdb_backdrop, tmdb_overview, tmdb_year, tmdb_rating, tmdb_genres FROM series
   WHERE playlist_id = ? AND search_title LIKE ? ORDER BY position LIMIT ? OFFSET ?
 `);
 
@@ -112,11 +112,13 @@ const toSeriesPreview = (row) => ({
   id: externalId(row),
   type: 'series',
   name: row.tmdb_title || row.title,
-  poster: row.logo || undefined,
+  poster: row.tmdb_poster || row.logo || undefined,
   posterShape: 'poster',
-  logo: row.logo || undefined,
+  background: row.tmdb_backdrop || undefined,
+  logo: row.tmdb_poster || row.logo || undefined,
   genres: row.group_name ? [row.group_name] : undefined,
-  description: `${row.episode_count} episodio(s) · ${row.season_count} temporada(s)`,
+  description: row.tmdb_overview || `${row.episode_count} episodio(s) · ${row.season_count} temporada(s)`,
+  year: row.tmdb_year || undefined,
   links: row.tmdb_id ? [{ name: 'tmdb', category: 'series', url: `https://www.themoviedb.org/tv/${row.tmdb_id}` }] : undefined,
 });
 
@@ -124,10 +126,13 @@ const toMetaPreview = (row) => ({
   id: externalId(row),
   type: row.type,
   name: row.tmdb_title || row.name,
-  poster: row.logo || undefined,
+  poster: row.tmdb_poster || row.logo || undefined,
   posterShape: row.type === 'tv' ? 'square' : 'poster',
-  logo: row.logo || undefined,
+  background: row.tmdb_backdrop || undefined,
+  logo: row.tmdb_poster || row.logo || undefined,
   genres: row.group_name ? [row.group_name] : undefined,
+  description: row.tmdb_overview || undefined,
+  year: row.tmdb_year || undefined,
   links: row.tmdb_id ? [{ name: 'tmdb', category: row.type, url: `https://www.themoviedb.org/${row.type === 'movie' ? 'movie' : 'tv'}/${row.tmdb_id}` }] : undefined,
 });
 
@@ -203,12 +208,13 @@ const getMeta = async (type, id, profileId) => {
           id: externalId(show, 'series'),
           type: 'series',
           name: show.tmdb_title || show.title,
-          poster: show.logo || undefined,
+          poster: show.tmdb_poster || show.logo || undefined,
           posterShape: 'poster',
-          background: show.logo || undefined,
-          logo: show.logo || undefined,
+          background: show.tmdb_backdrop || undefined,
+          logo: show.tmdb_poster || show.logo || undefined,
           genres: show.group_name ? [show.group_name] : undefined,
-          description: `${show.group_name || ''}${show.group_name ? ' · ' : ''}${show.playlist_name}`,
+          description: show.tmdb_overview || `${show.group_name || ''}${show.group_name ? ' · ' : ''}${show.playlist_name}`,
+          year: show.tmdb_year || undefined,
           videos: episodes.map((row) => ({
             id: `iptv:${row.uid}`,
             title: episodeTitle(row, show.title),
@@ -239,12 +245,13 @@ const getMeta = async (type, id, profileId) => {
       id: externalId(row),
       type: row.type,
       name: row.tmdb_title || row.name,
-      poster: row.logo || undefined,
+      poster: row.tmdb_poster || row.logo || undefined,
       posterShape: row.type === 'tv' ? 'square' : 'poster',
-      background: row.logo || undefined,
-      logo: row.logo || undefined,
+      background: row.tmdb_backdrop || undefined,
+      logo: row.tmdb_poster || row.logo || undefined,
       genres: row.group_name ? [row.group_name] : undefined,
-      description: `${row.group_name || ''}${row.group_name ? ' · ' : ''}${row.playlist_name}`,
+      description: row.tmdb_overview || `${row.group_name || ''}${row.group_name ? ' · ' : ''}${row.playlist_name}`,
+      year: row.tmdb_year || undefined,
     },
   };
   if (tmdb || profileId) {
