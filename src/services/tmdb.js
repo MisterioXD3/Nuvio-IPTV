@@ -54,11 +54,11 @@ const scoreResult = (query, result) => {
   return best;
 };
 
-const searchOne = async (type, query) => {
+const searchOne = async (type, query, credentials = {}) => {
   const endpoint = type === 'series' ? '/search/tv' : '/search/movie';
   const results = [];
   for (const language of config.tmdbLanguages) {
-    const data = await requestJson(endpoint, { query, language, include_adult: 'false', page: '1' });
+    const data = await requestJson(endpoint, { query, language, include_adult: 'false', page: '1' }, credentials);
     results.push(...(data.results || []).slice(0, 5).map((result) => ({ ...result, language })));
     await sleep(config.tmdbRequestDelayMs);
   }
@@ -120,16 +120,16 @@ const tmdbStatus = () => {
   };
 };
 
-const enrichAll = async () => {
+const enrichAll = async (credentials = {}) => {
   const results = [];
   for (const playlist of db.prepare('SELECT id FROM playlists WHERE enabled = 1 ORDER BY position').all()) {
-    results.push({ playlistId: playlist.id, ...(await enrichPlaylist(playlist.id)) });
+    results.push({ playlistId: playlist.id, ...(await enrichPlaylist(playlist.id, credentials)) });
   }
   return results;
 };
 
-const enrichPlaylist = async (playlistId) => {
-  if (!tmdbConfigured()) return { status: 'skipped', reason: 'TMDB_API_KEY o TMDB_ACCESS_TOKEN no configurado' };
+const enrichPlaylist = async (playlistId, credentials = {}) => {
+  if (!tmdbConfigured() && !credentials.apiKey && !credentials.accessToken) return { status: 'skipped', reason: 'TMDB_API_KEY o TMDB_ACCESS_TOKEN no configurado' };
   const max = config.tmdbMaxMatchesPerSync;
   const rows = db.prepare(`
     SELECT type, COALESCE(series_title, name) AS lookup_name, series_uid FROM items
@@ -139,7 +139,7 @@ const enrichPlaylist = async (playlistId) => {
   let matched = 0;
   for (const row of rows) {
     try {
-      const match = await searchOne(row.type, row.lookup_name);
+      const match = await searchOne(row.type, row.lookup_name, credentials);
       if (!match) continue;
       const aliases = unique([match.title, match.originalTitle, ...match.aliases]);
       const aliasesJson = JSON.stringify(aliases);

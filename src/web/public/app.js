@@ -306,7 +306,7 @@ $('#enrich-tmdb').addEventListener('click', async (event) => {
   event.target.disabled = true;
   toast('Actualizando asociaciones TMDb…');
   try {
-    await api('/tmdb/enrich', { method: 'POST', body: {} });
+    await api('/tmdb/enrich', { method: 'POST', body: { profileId } });
     toast('Asociaciones TMDb actualizadas');
     await refresh();
   } catch (error) {

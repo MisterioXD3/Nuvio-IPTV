@@ -6,7 +6,7 @@ const config = require('../config');
 const playlists = require('../db/playlists');
 const catalog = require('../services/catalog');
 const { syncPlaylist, isSyncing } = require('../services/sync');
-const { enrichAll, tmdbStatus, saveProfile, profileStatus } = require('../services/tmdb');
+const { enrichAll, tmdbStatus, saveProfile, profileStatus, getProfileCredentials } = require('../services/tmdb');
 const { db } = require('../db');
 
 const router = express.Router();
@@ -75,7 +75,8 @@ router.get('/tmdb', (req, res) => {
 
 router.post('/tmdb/enrich', async (req, res) => {
   try {
-    return res.json({ results: await enrichAll(), status: tmdbStatus() });
+    const credentials = getProfileCredentials(req.body?.profileId);
+    return res.json({ results: await enrichAll(credentials), status: tmdbStatus() });
   } catch (error) {
     return res.status(502).json({ error: error.message, status: tmdbStatus() });
   }
