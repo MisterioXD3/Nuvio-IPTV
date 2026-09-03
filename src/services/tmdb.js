@@ -4,7 +4,9 @@ const crypto = require('crypto');
 const config = require('../config');
 const { db, bumpRevision } = require('../db');
 const { normalizeName } = require('./m3u');
+const { LruCache } = require('../lib/lru');
 
+const tmdbCache = new LruCache({ max: 4000, ttlMs: config.tmdbCacheTtlMs });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const unique = (values) => [...new Set(values.filter(Boolean))];
 
@@ -33,9 +35,21 @@ const requestJson = async (path, params, credentials = {}) => {
   const apiKey = credentials.apiKey || config.tmdbApiKey;
   if (accessToken) headers.authorization = `Bearer ${accessToken}`;
   else if (apiKey) url.searchParams.set('api_key', apiKey);
-  const response = await fetch(url, { headers });
-  if (!response.ok) throw new Error(`TMDb HTTP ${response.status}`);
-  return response.json();
+  const credentialFingerprint = crypto.createHash('sha1').update(String(accessToken || apiKey || 'server')).digest('hex');
+  const cacheKey = `${path}?${url.searchParams.toString()}#${credentialFingerprint}`;
+  const cached = tmdbCache.get(cacheKey);
+  if (cached) return cached;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.tmdbRequestTimeoutMs);
+  try {
+    const response = await fetch(url, { headers, signal: controller.signal });
+    if (!response.ok) throw new Error(`TMDb HTTP ${response.status}`);
+    const data = await response.json();
+    tmdbCache.set(cacheKey, data);
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 const resultTitle = (result) => result.title || result.name || result.original_title || result.original_name || '';

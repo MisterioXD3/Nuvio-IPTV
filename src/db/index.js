@@ -186,6 +186,12 @@ addMissingColumns('items', SERIES_COLUMNS);
 addMissingColumns('staging_items', SERIES_COLUMNS);
 addMissingColumns('items', TMDB_COLUMNS);
 addMissingColumns('series', TMDB_COLUMNS);
+// These indexes depend on migrated TMDb columns, so create them only after the
+// compatibility migration has completed for existing databases.
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_items_tmdb_type ON items (tmdb_id, type);
+  CREATE INDEX IF NOT EXISTS idx_series_tmdb_type ON series (tmdb_id, tmdb_type);
+`);
 
 const getMetaStmt = db.prepare('SELECT value FROM meta WHERE key = ?');
 const setMetaStmt = db.prepare(

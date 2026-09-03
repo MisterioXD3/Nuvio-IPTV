@@ -33,4 +33,6 @@ module.exports = {
   tmdbMaxMatchesPerSync: num(process.env.TMDB_MAX_MATCHES_PER_SYNC, 250),
   tmdbMinMatchScore: num(process.env.TMDB_MIN_MATCH_SCORE, 60),
   tmdbRequestDelayMs: num(process.env.TMDB_REQUEST_DELAY_MS, 50),
+  tmdbCacheTtlMs: num(process.env.TMDB_CACHE_TTL_MS, 24 * 60 * 60 * 1000),
+  tmdbRequestTimeoutMs: num(process.env.TMDB_REQUEST_TIMEOUT_MS, 12000),
 };

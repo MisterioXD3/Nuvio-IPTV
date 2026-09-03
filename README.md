@@ -95,6 +95,8 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `TMDB_MAX_MATCHES_PER_SYNC` | `250` | Máximo de títulos candidatos enriquecidos por sincronización |
 | `TMDB_MIN_MATCH_SCORE` | `60` | Umbral conservador de coincidencia de títulos |
 | `TMDB_REQUEST_DELAY_MS` | `50` | Pausa entre solicitudes a TMDb |
+| `TMDB_CACHE_TTL_MS` | `86400000` | Tiempo de caché de respuestas TMDb |
+| `TMDB_REQUEST_TIMEOUT_MS` | `12000` | Tiempo máximo por solicitud a TMDb |
 
 También puedes guardar el token desde la interfaz web. El servidor conserva el secreto asociado a un perfil aleatorio y nunca lo devuelve en las respuestas de estado; el enlace personalizado contiene únicamente el identificador del perfil.
 
