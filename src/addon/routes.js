@@ -21,7 +21,7 @@ const buildManifest = () => {
     logo: 'https://dl.strem.io/addon-logo.png',
     resources: ['catalog', 'meta', 'stream'],
     types: types.length ? types : ['tv'],
-    idPrefixes: ['iptv:'],
+    idPrefixes: ['iptv:', 'tmdb:', 'tt'],
     catalogs,
     behaviorHints: { configurable: true, configurationRequired: false },
   };
