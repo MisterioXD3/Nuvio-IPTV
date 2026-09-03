@@ -291,6 +291,9 @@ const getGlobalStreams = async (type, id, profileId) => {
   }
   if (!resolved?.details) return null;
       const titles = collectTitles(resolved.details, resolved.type).map(matchTitle).filter(Boolean);
+    const releaseDate = resolved.type === 'series' ? resolved.details.first_air_date : resolved.details.release_date;
+    const targetYear = String(releaseDate || '').slice(0, 4);
+    const yearFrom = (value) => (String(value || '').match(/\b(?:19|20)\d{2}\b/) || [])[0] || null;
 
   const episode = id.match(/:(\d+):(\d+)$/);
   const rows = db.prepare(`SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent, s.title AS series_title FROM items i JOIN playlists p ON p.id = i.playlist_id LEFT JOIN series s ON s.uid = i.series_uid WHERE p.enabled = 1 AND i.type = ? ORDER BY i.position`).all(resolved.type);
@@ -299,10 +302,14 @@ const getGlobalStreams = async (type, id, profileId) => {
     if (row.tmdb_id && Number(row.tmdb_id) === Number(resolved.details.id)) return true;
     const candidates = [row.name, row.series_title, row.tmdb_title, row.tmdb_original_title];
     try { candidates.push(...(row.tmdb_titles ? JSON.parse(row.tmdb_titles) : [])); } catch {}
-    return candidates.some((candidate) => {
+    const titleMatch = candidates.some((candidate) => {
       const normalized = matchTitle(candidate);
       return normalized && titles.some((title) => normalized === title || normalized.startsWith(`${title} `) || title.startsWith(`${normalized} `));
     });
+    if (!titleMatch) return false;
+    if (!targetYear) return true;
+    const candidateYears = candidates.map(yearFrom).filter(Boolean);
+    return candidateYears.includes(targetYear);
   });
   return { streams: matches.slice(0, 12).map((row) => {
     const attrs = row.attrs ? JSON.parse(row.attrs) : {};
