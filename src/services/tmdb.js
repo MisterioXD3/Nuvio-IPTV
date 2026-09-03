@@ -9,6 +9,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const unique = (values) => [...new Set(values.filter(Boolean))];
 
 const tmdbConfigured = () => Boolean(config.tmdbApiKey || config.tmdbAccessToken);
+let enrichmentJob = null;
 const profileById = db.prepare('SELECT id, api_key, access_token FROM tmdb_profiles WHERE id = ?');
 const profileStatus = (id) => {
   const profile = profileById.get(id);
@@ -122,7 +123,17 @@ const tmdbStatus = () => {
     languages: config.tmdbLanguages,
     maxMatchesPerSync: config.tmdbMaxMatchesPerSync,
     totals,
+    job: enrichmentJob ? { status: enrichmentJob.status, startedAt: enrichmentJob.startedAt, finishedAt: enrichmentJob.finishedAt || null, error: enrichmentJob.error || null, results: enrichmentJob.results || [] } : null,
   };
+};
+
+const startEnrichment = (credentials = {}) => {
+  if (enrichmentJob?.status === 'running') return enrichmentJob;
+  enrichmentJob = { status: 'running', startedAt: new Date().toISOString(), results: [] };
+  enrichAll(credentials)
+    .then((results) => { enrichmentJob = { ...enrichmentJob, status: 'completed', finishedAt: new Date().toISOString(), results }; })
+    .catch((error) => { enrichmentJob = { ...enrichmentJob, status: 'failed', finishedAt: new Date().toISOString(), error: error.message }; });
+  return enrichmentJob;
 };
 
 const enrichAll = async (credentials = {}) => {
@@ -168,4 +179,4 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
   return { status: 'ok', candidates: rows.length, matched };
 };
 
-module.exports = { enrichPlaylist, enrichAll, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta };
+module.exports = { enrichPlaylist, enrichAll, startEnrichment, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta };

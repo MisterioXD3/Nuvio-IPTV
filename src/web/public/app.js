@@ -248,7 +248,9 @@ const renderTmdb = (status, profile) => {
     ? status.totals.map((row) => `<div class="tmdb-row"><span>${TYPE_LABEL[row.type] || row.type}</span><b>${formatNumber(row.matched)} / ${formatNumber(row.total)}</b></div>`).join('')
     : '<span class="hint">Todavía no hay películas o series indexadas.</span>';
   const warning = active ? '' : '<div class="error">Guarda tu token personalizado o configura TMDB_API_KEY/TMDB_ACCESS_TOKEN en el servidor.</div>';
-  statusEl.innerHTML = `${warning}<div class="tmdb-grid">${rows}</div><div class="hint">Idiomas: ${status.languages.join(', ')} · máximo por sincronización: ${formatNumber(status.maxMatchesPerSync)}</div>${profile?.configured ? '<div class="hint ok-text">Este navegador tiene un token TMDb personalizado guardado.</div>' : ''}`;
+  const job = status.job;
+  const jobText = job?.status === 'running' ? '<div class="hint">Enriquecimiento en curso. Esta página se actualizará automáticamente.</div>' : job?.status === 'failed' ? `<div class="error">Falló el enriquecimiento: ${job.error || 'error desconocido'}</div>` : job?.status === 'completed' ? '<div class="hint ok-text">Último enriquecimiento completado.</div>' : '';
+  statusEl.innerHTML = `${warning}<div class="tmdb-grid">${rows}</div><div class="hint">Idiomas: ${status.languages.join(', ')} · máximo por sincronización: ${formatNumber(status.maxMatchesPerSync)}</div>${jobText}${profile?.configured ? '<div class="hint ok-text">Este navegador tiene un token TMDb personalizado guardado.</div>' : ''}`;
 };
 
 const renderStats = (stats) => {
@@ -307,7 +309,7 @@ $('#enrich-tmdb').addEventListener('click', async (event) => {
   toast('Actualizando asociaciones TMDb…');
   try {
     await api('/tmdb/enrich', { method: 'POST', body: { profileId } });
-    toast('Asociaciones TMDb actualizadas');
+    toast('Enriquecimiento iniciado; la cobertura se actualizará en segundo plano');
     await refresh();
   } catch (error) {
     toast(error.message, true);
