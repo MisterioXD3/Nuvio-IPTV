@@ -186,8 +186,11 @@ const getExternalMeta = async (type, id, profileId) => {
       }
     } else if (id.startsWith('tt')) resolved = await getDetailsByImdbId(id.split(':')[0], credentials);
     else {
-      const match = /^tmdb:(?:(movie|series):)?(\d+)/.exec(id);
-      if (match) resolved = { type: match[1] || type, details: await getDetailsById(match[2], match[1] || type, credentials) };
+      const match = /^tmdb:(?:(movie|series|tv):)?(\d+)/.exec(id);
+      if (match) {
+        const resolvedType = match[1] === 'tv' ? 'series' : (match[1] || type);
+        resolved = { type: resolvedType, details: await getDetailsById(match[2], resolvedType, credentials) };
+      }
     }
     if (!resolved?.details) return null;
     return { meta: detailsToMeta(resolved.details, resolved.type, id) };
@@ -309,7 +312,7 @@ const getGlobalStreams = async (type, id, profileId) => {
     if (!titleMatch) return false;
     if (!targetYear) return true;
     const candidateYears = candidates.map(yearFrom).filter(Boolean);
-    return candidateYears.includes(targetYear);
+    return !candidateYears.length || candidateYears.includes(targetYear);
   });
   return { streams: matches.slice(0, 12).map((row) => {
     const attrs = row.attrs ? JSON.parse(row.attrs) : {};
