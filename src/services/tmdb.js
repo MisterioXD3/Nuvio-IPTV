@@ -93,7 +93,7 @@ const getDetailsByImdbId = async (imdbId, credentials = {}) => {
 
 const getDetailsById = async (tmdbId, type, credentials = {}) => {
   const endpoint = type === 'series' ? `/tv/${encodeURIComponent(tmdbId)}` : `/movie/${encodeURIComponent(tmdbId)}`;
-  return requestJson(endpoint, { append_to_response: 'alternative_titles,external_ids' }, credentials);
+  return requestJson(endpoint, { language: 'es-ES', append_to_response: 'alternative_titles,external_ids,credits,videos' }, credentials);
 };
 const collectTitles = (details, type) => {
   const values = [type === 'series' ? details.name : details.title, type === 'series' ? details.original_name : details.original_title];
@@ -113,6 +113,14 @@ const detailsToMeta = (details, type, id) => {
     releaseInfo: releaseDate ? releaseDate.slice(0, 4) : undefined,
     imdbRating: details.vote_average ? String(Math.round(details.vote_average * 10) / 10) : undefined,
     genres: Array.isArray(details.genres) ? details.genres.map((genre) => genre.name) : undefined,
+    runtime: details.runtime || details.episode_run_time?.[0] || undefined,
+    cast: Array.isArray(details.credits?.cast) ? details.credits.cast.slice(0, 12).map((person) => person.name) : undefined,
+    director: Array.isArray(details.credits?.crew) ? details.credits.crew.filter((person) => person.job === 'Director').map((person) => person.name).slice(0, 3) : undefined,
+    videos: Array.isArray(details.videos?.results) ? details.videos.results.filter((video) => video.site === 'YouTube' && ['Trailer', 'Teaser'].includes(video.type)).slice(0, 5).map((video) => ({ id: video.key, title: video.name, thumbnail: `https://i.ytimg.com/vi/${video.key}/hqdefault.jpg`, available: true })) : undefined,
+    links: [
+      details.external_ids?.imdb_id ? { name: 'IMDb', category: 'imdb', url: `https://www.imdb.com/title/${details.external_ids.imdb_id}` } : null,
+      { name: 'TMDb', category: 'tmdb', url: `https://www.themoviedb.org/${type === 'series' ? 'tv' : 'movie'}/${details.id}` },
+    ].filter(Boolean),
   };
 };
 

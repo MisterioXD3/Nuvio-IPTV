@@ -228,7 +228,7 @@ const getMeta = async (type, id, profileId) => {
       if (tmdb || profileId) {
         const enriched = await getExternalMeta('series', id, profileId);
         if (enriched) {
-          enriched.meta.videos = meta.meta.videos;
+          enriched.meta.videos = [...(meta.meta.videos || []), ...(enriched.meta.videos || [])];
           enriched.meta.id = meta.meta.id;
           return responseCache.set(cacheKey, enriched);
         }
