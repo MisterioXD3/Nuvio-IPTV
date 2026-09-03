@@ -5,7 +5,7 @@ const { db, getRevision } = require('../db');
 const playlists = require('../db/playlists');
 const { LruCache } = require('../lib/lru');
 const { normalizeName } = require('./m3u');
-const { getProfileCredentials, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta } = require('./tmdb');
+const { getProfileCredentials, resolveTitle, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta } = require('./tmdb');
 
 const responseCache = new LruCache({
   max: config.responseCacheMaxEntries,
@@ -178,7 +178,13 @@ const getExternalMeta = async (type, id, profileId) => {
   try {
     const credentials = getProfileCredentials(profileId);
     let resolved;
-    if (id.startsWith('tt')) resolved = await getDetailsByImdbId(id.split(':')[0], credentials);
+    if (id.startsWith('iptv:')) {
+      const row = selectByUid.get(id.slice(5));
+      if (row) {
+        const match = await resolveTitle(type, row.series_title || row.name, row.year, credentials);
+        if (match) resolved = { type, details: await getDetailsById(match.id, type, credentials) };
+      }
+    } else if (id.startsWith('tt')) resolved = await getDetailsByImdbId(id.split(':')[0], credentials);
     else {
       const match = /^tmdb:(?:(movie|series):)?(\d+)/.exec(id);
       if (match) resolved = { type: match[1] || type, details: await getDetailsById(match[2], match[1] || type, credentials) };

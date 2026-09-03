@@ -55,11 +55,11 @@ const scoreResult = (query, result) => {
   return best;
 };
 
-const searchOne = async (type, query, credentials = {}) => {
+const searchOne = async (type, query, credentials = {}, year) => {
   const endpoint = type === 'series' ? '/search/tv' : '/search/movie';
   const results = [];
   for (const language of config.tmdbLanguages) {
-    const data = await requestJson(endpoint, { query, language, include_adult: 'false', page: '1' }, credentials);
+    const data = await requestJson(endpoint, { query, language, include_adult: 'false', page: '1', ...(year ? (type === 'movie' ? { year: String(year) } : { first_air_date_year: String(year) }) : {}) }, credentials);
     results.push(...(data.results || []).slice(0, 5).map((result) => ({ ...result, language })));
     await sleep(config.tmdbRequestDelayMs);
   }
@@ -83,6 +83,8 @@ const searchOne = async (type, query, credentials = {}) => {
     genres: Array.isArray(best.genre_ids) ? best.genre_ids : [],
   };
 };
+
+const resolveTitle = async (type, title, year, credentials = {}) => searchOne(type, title, credentials, year);
 
 const getDetailsByImdbId = async (imdbId, credentials = {}) => {
   const data = await requestJson(`/find/${encodeURIComponent(imdbId)}`, { external_source: 'imdb_id' }, credentials);
@@ -187,4 +189,4 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
   return { status: 'ok', candidates: rows.length, matched };
 };
 
-module.exports = { enrichPlaylist, enrichAll, startEnrichment, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta };
+module.exports = { enrichPlaylist, enrichAll, startEnrichment, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, resolveTitle, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta };
