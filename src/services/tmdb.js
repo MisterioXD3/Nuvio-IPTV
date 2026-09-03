@@ -52,6 +52,12 @@ const requestJson = async (path, params, credentials = {}) => {
   }
 };
 
+const splitTitleYear = (value) => {
+  const source = String(value || '').trim();
+  const yearMatch = source.match(/\b((?:19|20)\d{2})\b/);
+  const title = source.replace(/\s*[\[(]?\b(?:19|20)\d{2}\b[\)]?\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  return { title, year: yearMatch ? yearMatch[1] : null };
+};
 const resultTitle = (result) => result.title || result.name || result.original_title || result.original_name || '';
 const resultOriginalTitle = (result) => result.original_title || result.original_name || '';
 
@@ -70,16 +76,19 @@ const scoreResult = (query, result) => {
 };
 
 const searchOne = async (type, query, credentials = {}, year) => {
+  const parsed = splitTitleYear(query);
+  const searchQuery = parsed.title || query;
+  const searchYear = year || parsed.year;
   const endpoint = type === 'series' ? '/search/tv' : '/search/movie';
   const results = [];
   for (const language of config.tmdbLanguages) {
-    const data = await requestJson(endpoint, { query, language, include_adult: 'false', page: '1', ...(year ? (type === 'movie' ? { year: String(year) } : { first_air_date_year: String(year) }) : {}) }, credentials);
+    const data = await requestJson(endpoint, { query: searchQuery, language, include_adult: 'false', page: '1', ...(searchYear ? (type === 'movie' ? { year: String(searchYear) } : { first_air_date_year: String(searchYear) }) : {}) }, credentials);
     results.push(...(data.results || []).slice(0, 5).map((result) => ({ ...result, language })));
     await sleep(config.tmdbRequestDelayMs);
   }
   const ranked = results
-    .filter((result) => result.id && scoreResult(query, result) >= config.tmdbMinMatchScore)
-    .sort((a, b) => scoreResult(query, b) - scoreResult(query, a) || (b.popularity || 0) - (a.popularity || 0));
+    .filter((result) => result.id && scoreResult(searchQuery, result) >= config.tmdbMinMatchScore)
+    .sort((a, b) => scoreResult(searchQuery, b) - scoreResult(searchQuery, a) || (b.popularity || 0) - (a.popularity || 0));
   const best = ranked[0];
   if (!best) return null;
   const aliases = unique(results.filter((result) => result.id === best.id).flatMap((result) => [result.title, result.name, result.original_title, result.original_name]));
@@ -179,7 +188,7 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
   let matched = 0;
   for (const row of rows) {
     try {
-      const match = await searchOne(row.type, row.lookup_name, credentials);
+      const match = await searchOne(row.type, row.lookup_name, credentials, splitTitleYear(row.lookup_name).year);
       if (!match) continue;
       const aliases = unique([match.title, match.originalTitle, ...match.aliases]);
       const aliasesJson = JSON.stringify(aliases);
@@ -203,4 +212,4 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
   return { status: 'ok', candidates: rows.length, matched };
 };
 
-module.exports = { enrichPlaylist, enrichAll, startEnrichment, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, resolveTitle, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta };
+module.exports = { enrichPlaylist, enrichAll, startEnrichment, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, resolveTitle, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta, splitTitleYear };
