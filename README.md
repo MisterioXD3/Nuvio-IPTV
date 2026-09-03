@@ -87,6 +87,7 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `SCHEDULER_INTERVAL_MS` | `60000` | Cada cuánto se revisan las listas vencidas |
 | `SYNC_TIMEOUT_MS` | `600000` | Tiempo máximo de una descarga |
 | `DEFAULT_USER_AGENT` | `VLC/3.0.20 LibVLC/3.0.20` | User-Agent para descargas y reproducción |
+| `STREAMS_PER_RESULT_LIMIT` | `0` | Máximo de streams por ficha; `0` devuelve todas las fuentes distintas |
 | `ADMIN_TOKEN` | *(vacío)* | Si se define, la API `/api/*` exige `Authorization: Bearer <token>` |
 | `PLAYLISTS_JSON` | *(vacío)* | Listas a recrear al arrancar, para plataformas sin disco persistente |
 | `TMDB_API_KEY` | *(vacío)* | Clave v3 de TMDb; activa el enriquecimiento opcional de películas y series |

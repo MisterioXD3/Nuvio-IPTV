@@ -314,11 +314,17 @@ const getGlobalStreams = async (type, id, profileId) => {
     const candidateYears = candidates.map(yearFrom).filter(Boolean);
     return !candidateYears.length || candidateYears.includes(targetYear);
   });
-  return { streams: matches.slice(0, 12).map((row) => {
+  const seen = new Set();
+  const streams = matches.map((row) => {
     const attrs = row.attrs ? JSON.parse(row.attrs) : {};
     const userAgent = attrs['http-user-agent'] || row.playlist_user_agent || config.defaultUserAgent;
-    return { name: 'IPTV', title: row.group_name ? `${row.name}\n${row.group_name}` : row.name, url: row.url, behaviorHints: { notWebReady: true, proxyHeaders: { request: { 'User-Agent': userAgent } } } };
-  }) };
+    const title = row.group_name ? `${row.name}\n${row.group_name}` : row.name;
+    const key = `${row.url}\u0000${title}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return { name: row.playlist_name || 'IPTV', title, url: row.url, behaviorHints: { notWebReady: true, proxyHeaders: { request: { 'User-Agent': userAgent } } } };
+  }).filter(Boolean);
+  return { streams: config.streamsPerResultLimit > 0 ? streams.slice(0, config.streamsPerResultLimit) : streams };
   } catch {
     return null;
   }
