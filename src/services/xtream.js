@@ -1,6 +1,8 @@
 'use strict';
 
+const config = require('../config');
 const buildBase = (url) => url.replace(/\/+$/, '').replace(/\/(get|player_api)\.php.*$/i, '');
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const playlistUrl = (playlist) => {
   const base = buildBase(playlist.url);
@@ -23,10 +25,15 @@ const fetchAccountInfo = async (playlist, { signal, userAgent } = {}) => {
     username: playlist.username || '',
     password: playlist.password || '',
   });
-  const response = await fetch(`${base}/player_api.php?${params.toString()}`, {
-    signal,
-    headers: { 'user-agent': userAgent || 'VLC/3.0.20 LibVLC/3.0.20' },
-  });
+  let response;
+  for (let attempt = 0; attempt <= config.syncRetries; attempt += 1) {
+    response = await fetch(`${base}/player_api.php?${params.toString()}`, {
+      signal,
+      headers: { accept: 'application/json', 'user-agent': userAgent || config.defaultUserAgent },
+    });
+    if (response.ok || ![408, 425, 429, 500, 502, 503, 504].includes(response.status) || attempt === config.syncRetries) break;
+    await wait(Math.min(config.syncRetryBaseMs * (2 ** attempt), 30000));
+  }
   if (!response.ok) throw new Error(`player_api respondió ${response.status}`);
   const payload = await response.json();
   const info = payload && payload.user_info;

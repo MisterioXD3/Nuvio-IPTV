@@ -24,6 +24,8 @@ module.exports = {
   // How often the scheduler looks for playlists whose refresh interval elapsed.
   schedulerIntervalMs: num(process.env.SCHEDULER_INTERVAL_MS, 60 * 1000),
   syncTimeoutMs: num(process.env.SYNC_TIMEOUT_MS, 10 * 60 * 1000),
+  syncRetries: num(process.env.SYNC_RETRIES, 3),
+  syncRetryBaseMs: num(process.env.SYNC_RETRY_BASE_MS, 1000),
   defaultUserAgent: process.env.DEFAULT_USER_AGENT || 'VLC/3.0.20 LibVLC/3.0.20',
   streamsPerResultLimit: num(process.env.STREAMS_PER_RESULT_LIMIT, 0),
   adminToken: process.env.ADMIN_TOKEN || null,

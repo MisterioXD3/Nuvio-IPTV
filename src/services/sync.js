@@ -11,6 +11,30 @@ const xtream = require('./xtream');
 const { enrichPlaylist } = require('./tmdb');
 
 const BATCH_SIZE = 5000;
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+const retryDelay = (attempt, response) => {
+  const retryAfter = Number(response?.headers?.get('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) return Math.min(retryAfter * 1000, 30000);
+  return Math.min(config.syncRetryBaseMs * (2 ** attempt), 30000);
+};
+
+const fetchPlaylist = async (url, options) => {
+  let lastError;
+  for (let attempt = 0; attempt <= config.syncRetries; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok || response.status === 304 || !RETRYABLE_STATUS.has(response.status) || attempt === config.syncRetries) return response;
+      response.body?.cancel();
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt, response)));
+    } catch (error) {
+      lastError = error;
+      if (options.signal?.aborted || attempt === config.syncRetries) throw error;
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
+    }
+  }
+  throw lastError || new Error('No se pudo descargar la lista');
+};
 
 /**
  * Stable identifier that survives re-syncs, so entries saved in Nuvio keep
@@ -134,7 +158,11 @@ const runSync = async (playlistId, { force = false } = {}) => {
     if (!force && playlist.http_etag) headers['if-none-match'] = playlist.http_etag;
     if (!force && playlist.http_last_modified) headers['if-modified-since'] = playlist.http_last_modified;
 
-    const response = await fetch(url, { headers, signal: controller.signal, redirect: 'follow' });
+    const response = await fetchPlaylist(url, {
+      headers: { ...headers, referer: playlist.url },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
 
     if (response.status === 304) {
       markSync(playlistId, {
