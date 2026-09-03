@@ -5,6 +5,9 @@ const $ = (selector) => document.querySelector(selector);
 
 const TYPE_LABEL = { tv: 'TV en vivo', movie: 'Películas', series: 'Series' };
 let playlists = [];
+const PROFILE_KEY = 'nuvio-iptv-tmdb-profile';
+let profileId = window.localStorage.getItem(PROFILE_KEY) || '';
+let profileManifestUrl = '';
 
 const toast = (message, isError = false) => {
   const el = $('#toast');
@@ -228,23 +231,24 @@ const attachDragHandlers = (container) => {
   });
 };
 
-const renderTmdb = (status) => {
+const renderTmdb = (status, profile) => {
   const badge = $('#tmdb-badge');
   const statusEl = $('#tmdb-status');
-  if (!status.configured) {
+  const active = Boolean(profile?.configured || status.configured);
+  if (!active) {
     badge.textContent = 'sin configurar';
     badge.className = 'badge warn';
-    statusEl.innerHTML = '<div class="error">Añade <b>TMDB_API_KEY</b> o <b>TMDB_ACCESS_TOKEN</b> en las variables de entorno del servidor.</div>';
     $('#enrich-tmdb').disabled = true;
-    return;
+  } else {
+    badge.textContent = profile?.configured ? 'perfil activo' : 'servidor activo';
+    badge.className = 'badge ok';
+    $('#enrich-tmdb').disabled = false;
   }
-  badge.textContent = 'activo';
-  badge.className = 'badge ok';
-  $('#enrich-tmdb').disabled = false;
   const rows = status.totals.length
     ? status.totals.map((row) => `<div class="tmdb-row"><span>${TYPE_LABEL[row.type] || row.type}</span><b>${formatNumber(row.matched)} / ${formatNumber(row.total)}</b></div>`).join('')
     : '<span class="hint">Todavía no hay películas o series indexadas.</span>';
-  statusEl.innerHTML = `<div class="tmdb-grid">${rows}</div><div class="hint">Idiomas: ${status.languages.join(', ')} · máximo por sincronización: ${formatNumber(status.maxMatchesPerSync)}</div>`;
+  const warning = active ? '' : '<div class="error">Guarda tu token personalizado o configura TMDB_API_KEY/TMDB_ACCESS_TOKEN en el servidor.</div>';
+  statusEl.innerHTML = `${warning}<div class="tmdb-grid">${rows}</div><div class="hint">Idiomas: ${status.languages.join(', ')} · máximo por sincronización: ${formatNumber(status.maxMatchesPerSync)}</div>${profile?.configured ? '<div class="hint ok-text">Este navegador tiene un token TMDb personalizado guardado.</div>' : ''}`;
 };
 
 const renderStats = (stats) => {
@@ -260,7 +264,7 @@ const renderStats = (stats) => {
 };
 
 const refresh = async () => {
-  const [listResponse, stats, tmdb] = await Promise.all([api('/playlists'), api('/stats'), api('/tmdb')]);
+  const [listResponse, stats, tmdb, profile] = await Promise.all([api('/playlists'), api('/stats'), api('/tmdb'), profileId ? api(`/tmdb/profile/${profileId}`) : Promise.resolve(null)]);
   playlists = listResponse.playlists;
   const container = $('#playlists');
   container.innerHTML = '';
@@ -269,8 +273,34 @@ const refresh = async () => {
   }
   playlists.forEach((playlist) => container.appendChild(renderCard(playlist)));
   renderStats(stats);
-  renderTmdb(tmdb);
+  renderTmdb(tmdb, profile);
 };
+
+$('#tmdb-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const body = Object.fromEntries(form.entries());
+  if (profileId) body.id = profileId;
+  try {
+    const result = await api('/tmdb/profile', { method: 'POST', body });
+    profileId = result.profile.id;
+    profileManifestUrl = new URL(result.manifestUrl, window.location.origin).href;
+    window.localStorage.setItem(PROFILE_KEY, profileId);
+    $('#manifest-url').value = profileManifestUrl;
+    $('#copy-profile-manifest').disabled = false;
+    event.target.reset();
+    toast('Token guardado y manifest personalizado generado');
+    await refresh();
+  } catch (error) {
+    toast(error.message, true);
+  }
+});
+
+$('#copy-profile-manifest').addEventListener('click', async () => {
+  if (!profileManifestUrl) return;
+  await navigator.clipboard.writeText(profileManifestUrl);
+  toast('Manifest personalizado copiado');
+});
 
 $('#enrich-tmdb').addEventListener('click', async (event) => {
   event.target.disabled = true;
@@ -312,7 +342,9 @@ $('#copy-manifest').addEventListener('click', async () => {
   }
 });
 
-$('#manifest-url').value = new URL('../manifest.json', window.location.href).href;
+profileManifestUrl = profileId ? new URL(`../p/${profileId}/manifest.json`, window.location.href).href : '';
+$('#manifest-url').value = profileManifestUrl || new URL('../manifest.json', window.location.href).href;
+if (profileManifestUrl) $('#copy-profile-manifest').disabled = false;
 attachDragHandlers($('#playlists'));
 refresh().catch((error) => toast(error.message, true));
 setInterval(() => refresh().catch(() => {}), 30000);

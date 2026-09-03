@@ -5,6 +5,7 @@ const { db, getRevision } = require('../db');
 const playlists = require('../db/playlists');
 const { LruCache } = require('../lib/lru');
 const { normalizeName } = require('./m3u');
+const { getProfileCredentials, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta } = require('./tmdb');
 
 const responseCache = new LruCache({
   max: config.responseCacheMaxEntries,
@@ -106,9 +107,9 @@ const describeCatalogs = () =>
     }))
   );
 
-const externalId = (row, type) => row.tmdb_id ? `tmdb:${type}:${row.tmdb_id}` : `iptv:${row.uid}`;
+const externalId = (row) => row.tmdb_id ? `tmdb:${row.tmdb_id}` : `iptv:${row.uid}`;
 const toSeriesPreview = (row) => ({
-  id: externalId(row, 'series'),
+  id: externalId(row),
   type: 'series',
   name: row.tmdb_title || row.title,
   poster: row.logo || undefined,
@@ -120,7 +121,7 @@ const toSeriesPreview = (row) => ({
 });
 
 const toMetaPreview = (row) => ({
-  id: externalId(row, row.type),
+  id: externalId(row),
   type: row.type,
   name: row.tmdb_title || row.name,
   poster: row.logo || undefined,
@@ -168,11 +169,28 @@ const getCatalog = ({ id, type, genre, search, skip }) => {
   return responseCache.set(cacheKey, { metas: rows.map(toMetaPreview) });
 };
 
-const getMeta = (type, id) => {
+const getExternalMeta = async (type, id, profileId) => {
+  try {
+    const credentials = getProfileCredentials(profileId);
+    let resolved;
+    if (id.startsWith('tt')) resolved = await getDetailsByImdbId(id.split(':')[0], credentials);
+    else {
+      const match = /^tmdb:(?:(movie|series):)?(\d+)/.exec(id);
+      if (match) resolved = { type: match[1] || type, details: await getDetailsById(match[2], match[1] || type, credentials) };
+    }
+    if (!resolved?.details) return null;
+    return { meta: detailsToMeta(resolved.details, resolved.type, id) };
+  } catch {
+    return null;
+  }
+};
+
+const getMeta = async (type, id, profileId) => {
   const uid = id.startsWith('iptv:') ? id.slice(5) : null;
-  const tmdb = /^tmdb:(movie|series):(\d+)$/.exec(id);
-  if (!uid && !tmdb) return null;
-  const cacheKey = `meta:${getRevision()}:${id}`;
+  const tmdb = /^tmdb:(?:(movie|series):)?(\d+)(?::(\d+):(\d+))?$/.exec(id);
+  const imdb = /^tt\d+/.test(id);
+  if (!uid && !tmdb && !imdb) return null;
+  const cacheKey = `meta:${getRevision()}:${profileId || 'default'}:${id}`;
   const cached = responseCache.get(cacheKey);
   if (cached) return cached;
 
@@ -201,16 +219,24 @@ const getMeta = (type, id) => {
           })),
         },
       };
+      if (tmdb || profileId) {
+        const enriched = await getExternalMeta('series', id, profileId);
+        if (enriched) {
+          enriched.meta.videos = meta.meta.videos;
+          enriched.meta.id = meta.meta.id;
+          return responseCache.set(cacheKey, enriched);
+        }
+      }
       return responseCache.set(cacheKey, meta);
     }
   }
 
-  const row = tmdb ? db.prepare('SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent FROM items i JOIN playlists p ON p.id = i.playlist_id WHERE i.tmdb_id = ? AND i.type = ? LIMIT 1').get(Number(tmdb[2]), type) : selectByUid.get(uid);
-  if (!row || row.type !== type) return null;
+  const row = tmdb ? db.prepare('SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent FROM items i JOIN playlists p ON p.id = i.playlist_id WHERE i.tmdb_id = ? AND i.type = ? LIMIT 1').get(Number(tmdb[2]), type) : uid ? selectByUid.get(uid) : null;
+  if (!row || row.type !== type) return getExternalMeta(type, id, profileId);
 
   const meta = {
     meta: {
-      id: externalId(row, row.type),
+      id: externalId(row),
       type: row.type,
       name: row.tmdb_title || row.name,
       poster: row.logo || undefined,
@@ -221,6 +247,13 @@ const getMeta = (type, id) => {
       description: `${row.group_name || ''}${row.group_name ? ' · ' : ''}${row.playlist_name}`,
     },
   };
+  if (tmdb || profileId) {
+    const enriched = await getExternalMeta(type, id, profileId);
+    if (enriched) {
+      enriched.meta.id = meta.meta.id;
+      return responseCache.set(cacheKey, enriched);
+    }
+  }
   return responseCache.set(cacheKey, meta);
 };
 
@@ -231,16 +264,51 @@ const episodeTitle = (row, showTitle) => {
   return stripped || `T${row.season || 1} E${row.episode || 1}`;
 };
 
-const getStreams = (type, id) => {
+const getGlobalStreams = async (type, id, profileId) => {
+  try {
+    const credentials = getProfileCredentials(profileId);
+  if (!credentials.apiKey && !credentials.accessToken && !config.tmdbApiKey && !config.tmdbAccessToken) return null;
+  let resolved;
+  if (id.startsWith('tt')) resolved = await getDetailsByImdbId(id.split(':')[0], credentials);
+  else {
+    const match = /^tmdb:(?:(movie|series):)?(\d+)/.exec(id);
+    if (match) resolved = { type: match[1] || type, details: await getDetailsById(match[2], match[1] || type, credentials) };
+  }
+  if (!resolved?.details) return null;
+  const titles = collectTitles(resolved.details, resolved.type).map(normalizeName).filter(Boolean);
+  const episode = id.match(/:(\d+):(\d+)$/);
+  const rows = db.prepare(`SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent, s.title AS series_title FROM items i JOIN playlists p ON p.id = i.playlist_id LEFT JOIN series s ON s.uid = i.series_uid WHERE p.enabled = 1 AND i.type = ? ORDER BY i.position`).all(resolved.type);
+  const matches = rows.filter((row) => {
+    if (resolved.type === 'series' && (!episode || row.season !== Number(episode[1]) || row.episode !== Number(episode[2]))) return false;
+    if (row.tmdb_id && Number(row.tmdb_id) === Number(resolved.details.id)) return true;
+    const candidates = [row.name, row.series_title, row.tmdb_title, row.tmdb_original_title];
+    try { candidates.push(...(row.tmdb_titles ? JSON.parse(row.tmdb_titles) : [])); } catch {}
+    return candidates.some((candidate) => titles.includes(normalizeName(candidate || '')));
+  });
+  return { streams: matches.slice(0, 12).map((row) => {
+    const attrs = row.attrs ? JSON.parse(row.attrs) : {};
+    const userAgent = attrs['http-user-agent'] || row.playlist_user_agent || config.defaultUserAgent;
+    return { name: 'IPTV', title: row.group_name ? `${row.name}\n${row.group_name}` : row.name, url: row.url, behaviorHints: { notWebReady: true, proxyHeaders: { request: { 'User-Agent': userAgent } } } };
+  }) };
+  } catch {
+    return null;
+  }
+};
+
+const getStreams = async (type, id, profileId) => {
   const uid = id.startsWith('iptv:') ? id.slice(5) : null;
-  const tmdb = /^tmdb:(movie|series):(\d+)$/.exec(id);
-  if (!uid && !tmdb) return null;
-  const cacheKey = `stream:${getRevision()}:${id}`;
+  const tmdb = /^tmdb:(?:(movie|series):)?(\d+)(?::(\d+):(\d+))?$/.exec(id);
+  if (!uid && !tmdb && !id.startsWith('tt')) return null;
+  const cacheKey = `stream:${getRevision()}:${profileId || 'default'}:${id}`;
   const cached = responseCache.get(cacheKey);
   if (cached) return cached;
 
-  const row = tmdb ? db.prepare('SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent FROM items i JOIN playlists p ON p.id = i.playlist_id WHERE i.tmdb_id = ? AND i.type = ? LIMIT 1').get(Number(tmdb[2]), type) : selectByUid.get(uid);
-  if (!row || row.type !== type) return null;
+  if (tmdb) {
+    const global = await getGlobalStreams(type, id, profileId);
+    if (global?.streams?.length) return responseCache.set(cacheKey, global);
+  }
+  const row = tmdb ? db.prepare('SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent FROM items i JOIN playlists p ON p.id = i.playlist_id WHERE i.tmdb_id = ? AND i.type = ? LIMIT 1').get(Number(tmdb[2]), type) : uid ? selectByUid.get(uid) : null;
+  if (!row || row.type !== type) return getGlobalStreams(type, id, profileId);
 
   const attrs = row.attrs ? JSON.parse(row.attrs) : {};
   const userAgent = attrs['http-user-agent'] || row.playlist_user_agent || config.defaultUserAgent;

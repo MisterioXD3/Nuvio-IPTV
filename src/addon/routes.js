@@ -5,6 +5,7 @@ const express = require('express');
 const config = require('../config');
 const catalog = require('../services/catalog');
 const { getRevision } = require('../db');
+const { profileStatus, getProfileCredentials } = require('../services/tmdb');
 
 const CACHE_HEADER = `public, max-age=${Math.floor(config.responseCacheTtlMs / 1000)}, stale-while-revalidate=86400`;
 
@@ -40,6 +41,7 @@ const parseExtra = (raw) => {
 };
 
 const router = express.Router();
+const profilePath = (path) => `/p/:profile${path}`;
 
 router.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -49,7 +51,7 @@ router.use((req, res, next) => {
 
 let manifestCache = { revision: -1, value: null };
 
-router.get('/manifest.json', (req, res) => {
+router.get([ '/manifest.json', profilePath('/manifest.json') ], (req, res) => {
   const revision = getRevision();
   if (manifestCache.revision !== revision) {
     manifestCache = { revision, value: buildManifest() };
@@ -57,17 +59,19 @@ router.get('/manifest.json', (req, res) => {
   res.set('Cache-Control', CACHE_HEADER).json(manifestCache.value);
 });
 
-router.get('/catalog/:type/:id.json', (req, res) => {
+router.get([ '/catalog/:type/:id.json', profilePath('/catalog/:type/:id.json') ], (req, res) => {
   const result = catalog.getCatalog({
     id: req.params.id,
     type: req.params.type,
-    skip: 0,
+          skip: 0,
+      profileId: req.params.profile || null,
+
   });
   if (!result) return res.status(404).json({ metas: [] });
   return res.set('Cache-Control', CACHE_HEADER).json(result);
 });
 
-router.get('/catalog/:type/:id/:extra.json', (req, res) => {
+router.get([ '/catalog/:type/:id/:extra.json', profilePath('/catalog/:type/:id/:extra.json') ], (req, res) => {
   const extra = parseExtra(req.params.extra);
   const result = catalog.getCatalog({
     id: req.params.id,
@@ -75,19 +79,20 @@ router.get('/catalog/:type/:id/:extra.json', (req, res) => {
     genre: extra.genre,
     search: extra.search,
     skip: extra.skip ? Number(extra.skip) : 0,
+    profileId: req.params.profile || null,
   });
   if (!result) return res.status(404).json({ metas: [] });
   return res.set('Cache-Control', CACHE_HEADER).json(result);
 });
 
-router.get('/meta/:type/:id.json', (req, res) => {
-  const result = catalog.getMeta(req.params.type, req.params.id);
+router.get([ '/meta/:type/:id.json', profilePath('/meta/:type/:id.json') ], async (req, res) => {
+  const result = await catalog.getMeta(req.params.type, req.params.id, req.params.profile || null);
   if (!result) return res.status(404).json({ meta: null });
   return res.set('Cache-Control', CACHE_HEADER).json(result);
 });
 
-router.get('/stream/:type/:id.json', (req, res) => {
-  const result = catalog.getStreams(req.params.type, req.params.id);
+router.get([ '/stream/:type/:id.json', profilePath('/stream/:type/:id.json') ], async (req, res) => {
+  const result = await catalog.getStreams(req.params.type, req.params.id, req.params.profile || null);
   if (!result) return res.status(404).json({ streams: [] });
   return res.set('Cache-Control', CACHE_HEADER).json(result);
 });

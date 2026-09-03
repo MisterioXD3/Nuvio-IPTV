@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const config = require('../config');
 const { db, bumpRevision } = require('../db');
 const { normalizeName } = require('./m3u');
@@ -8,13 +9,29 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const unique = (values) => [...new Set(values.filter(Boolean))];
 
 const tmdbConfigured = () => Boolean(config.tmdbApiKey || config.tmdbAccessToken);
+const profileById = db.prepare('SELECT id, api_key, access_token FROM tmdb_profiles WHERE id = ?');
+const profileStatus = (id) => {
+  const profile = profileById.get(id);
+  return { id, configured: Boolean(profile && (profile.api_key || profile.access_token)), hasApiKey: Boolean(profile?.api_key), hasAccessToken: Boolean(profile?.access_token) };
+};
+const saveProfile = ({ id, apiKey, accessToken }) => {
+  const profileId = id || crypto.randomBytes(12).toString('base64url');
+  db.prepare(`INSERT INTO tmdb_profiles (id, api_key, access_token, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(id) DO UPDATE SET api_key = excluded.api_key, access_token = excluded.access_token, updated_at = datetime('now')`).run(profileId, apiKey || null, accessToken || null);
+  return profileStatus(profileId);
+};
+const getProfileCredentials = (id) => {
+  const row = id ? profileById.get(id) : null;
+  return row ? { apiKey: row.api_key, accessToken: row.access_token } : {};
+};
 
-const requestJson = async (path, params) => {
+const requestJson = async (path, params, credentials = {}) => {
   const url = new URL(`https://api.themoviedb.org/3${path}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   const headers = { accept: 'application/json' };
-  if (config.tmdbAccessToken) headers.authorization = `Bearer ${config.tmdbAccessToken}`;
-  else if (config.tmdbApiKey) url.searchParams.set('api_key', config.tmdbApiKey);
+  const accessToken = credentials.accessToken || config.tmdbAccessToken;
+  const apiKey = credentials.apiKey || config.tmdbApiKey;
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  else if (apiKey) url.searchParams.set('api_key', apiKey);
   const response = await fetch(url, { headers });
   if (!response.ok) throw new Error(`TMDb HTTP ${response.status}`);
   return response.json();
@@ -58,6 +75,38 @@ const searchOne = async (type, query) => {
     originalTitle: resultOriginalTitle(best),
     aliases,
     poster: best.poster_path ? `https://image.tmdb.org/t/p/w500${best.poster_path}` : null,
+  };
+};
+
+const getDetailsByImdbId = async (imdbId, credentials = {}) => {
+  const data = await requestJson(`/find/${encodeURIComponent(imdbId)}`, { external_source: 'imdb_id' }, credentials);
+  if (data.movie_results?.length) return { type: 'movie', details: data.movie_results[0] };
+  if (data.tv_results?.length) return { type: 'series', details: data.tv_results[0] };
+  return null;
+};
+
+const getDetailsById = async (tmdbId, type, credentials = {}) => {
+  const endpoint = type === 'series' ? `/tv/${encodeURIComponent(tmdbId)}` : `/movie/${encodeURIComponent(tmdbId)}`;
+  return requestJson(endpoint, { append_to_response: 'alternative_titles,external_ids' }, credentials);
+};
+const collectTitles = (details, type) => {
+  const values = [type === 'series' ? details.name : details.title, type === 'series' ? details.original_name : details.original_title];
+  const alternatives = details.alternative_titles?.titles || details.alternative_titles?.results || [];
+  return [...new Set([...values, ...alternatives.map((entry) => entry.title)].filter(Boolean))];
+};
+const detailsToMeta = (details, type, id) => {
+  const releaseDate = type === 'series' ? details.first_air_date : details.release_date;
+  return {
+    id,
+    type,
+    name: type === 'series' ? details.name || details.original_name : details.title || details.original_title,
+    poster: details.poster_path ? `https://image.tmdb.org/t/p/w500${details.poster_path}` : undefined,
+    background: details.backdrop_path ? `https://image.tmdb.org/t/p/w1280${details.backdrop_path}` : undefined,
+    description: details.overview || undefined,
+    year: releaseDate ? releaseDate.slice(0, 4) : undefined,
+    releaseInfo: releaseDate ? releaseDate.slice(0, 4) : undefined,
+    imdbRating: details.vote_average ? String(Math.round(details.vote_average * 10) / 10) : undefined,
+    genres: Array.isArray(details.genres) ? details.genres.map((genre) => genre.name) : undefined,
   };
 };
 
@@ -114,4 +163,4 @@ const enrichPlaylist = async (playlistId) => {
   return { status: 'ok', candidates: rows.length, matched };
 };
 
-module.exports = { enrichPlaylist, enrichAll, tmdbConfigured, tmdbStatus };
+module.exports = { enrichPlaylist, enrichAll, tmdbConfigured, tmdbStatus, saveProfile, profileStatus, getProfileCredentials, getDetailsById, getDetailsByImdbId, collectTitles, detailsToMeta };

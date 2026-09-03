@@ -6,7 +6,7 @@ const config = require('../config');
 const playlists = require('../db/playlists');
 const catalog = require('../services/catalog');
 const { syncPlaylist, isSyncing } = require('../services/sync');
-const { enrichAll, tmdbStatus } = require('../services/tmdb');
+const { enrichAll, tmdbStatus, saveProfile, profileStatus } = require('../services/tmdb');
 const { db } = require('../db');
 
 const router = express.Router();
@@ -57,6 +57,17 @@ const present = (playlist) => {
     totalItems: stats.reduce((sum, row) => sum + row.item_count, 0),
   };
 };
+
+router.post('/tmdb/profile', (req, res) => {
+  const apiKey = String(req.body?.apiKey || '').trim();
+  const accessToken = String(req.body?.accessToken || '').trim();
+  if (!apiKey && !accessToken) return res.status(400).json({ error: 'Introduce una API key o un access token de TMDb' });
+  const profile = saveProfile({ id: req.body?.id, apiKey, accessToken });
+  return res.json({ profile, manifestUrl: `/p/${profile.id}/manifest.json` });
+});
+router.get('/tmdb/profile/:id', (req, res) => {
+  return res.json(profileStatus(req.params.id));
+});
 
 router.get('/tmdb', (req, res) => {
   res.json(tmdbStatus());

@@ -143,6 +143,14 @@ CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tmdb_profiles (
+  id TEXT PRIMARY KEY,
+  api_key TEXT,
+  access_token TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 // Adds columns introduced after a database was first created.

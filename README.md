@@ -52,8 +52,11 @@ npm start           # http://localhost:7010
 
 1. Abre `http://localhost:7010/configure/`.
 2. Añade tus listas (M3U o Xtream). La primera sincronización arranca sola.
-3. Copia la URL del manifest que muestra la cabecera y añádela en Nuvio:
-   **Ajustes → Addons → Añadir addon** con `http://TU_SERVIDOR:7010/manifest.json`.
+3. En el panel **TMDb y búsquedas externas**, introduce tu propia API key v3 o access token v4 y pulsa **Guardar token y generar manifest personalizado**.
+4. Copia el manifest personalizado que muestra la cabecera y añádelo en Nuvio:
+   **Ajustes → Addons → Añadir addon** con `http://TU_SERVIDOR:7010/p/TU_PERFIL/manifest.json`.
+
+El manifest personalizado permite que Nuvio consulte los streams IPTV cuando abre un resultado proveniente de otro catálogo usando un ID `tmdb:<id>` o IMDb. El addon resuelve ese ID contra TMDb, compara los títulos originales, traducidos y alternativos con las listas IPTV, y devuelve las fuentes coincidentes. La ficha utiliza la información de TMDb —portada, fondo, descripción, año, géneros y valoración— mientras que la reproducción continúa usando la URL IPTV original.
 
 En Xtream Codes basta con la URL base del servidor más usuario y contraseña: el addon construye
 la URL `get.php` y lee la fecha real de vencimiento desde `player_api.php`.
@@ -92,6 +95,8 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `TMDB_MAX_MATCHES_PER_SYNC` | `250` | Máximo de títulos candidatos enriquecidos por sincronización |
 | `TMDB_MIN_MATCH_SCORE` | `60` | Umbral conservador de coincidencia de títulos |
 | `TMDB_REQUEST_DELAY_MS` | `50` | Pausa entre solicitudes a TMDb |
+
+También puedes guardar el token desde la interfaz web. El servidor conserva el secreto asociado a un perfil aleatorio y nunca lo devuelve en las respuestas de estado; el enlace personalizado contiene únicamente el identificador del perfil.
 
 ## API de configuración
 
