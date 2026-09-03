@@ -277,6 +277,8 @@ const episodeTitle = (row, showTitle) => {
   return stripped || `T${row.season || 1} E${row.episode || 1}`;
 };
 
+const matchTitle = (value) => normalizeName(String(value || '')).replace(/\b(?:19|20)\d{2}\b/g, ' ').replace(/\s+/g, ' ').trim();
+
 const getGlobalStreams = async (type, id, profileId) => {
   try {
     const credentials = getProfileCredentials(profileId);
@@ -288,7 +290,8 @@ const getGlobalStreams = async (type, id, profileId) => {
     if (match) resolved = { type: match[1] || type, details: await getDetailsById(match[2], match[1] || type, credentials) };
   }
   if (!resolved?.details) return null;
-  const titles = collectTitles(resolved.details, resolved.type).map(normalizeName).filter(Boolean);
+      const titles = collectTitles(resolved.details, resolved.type).map(matchTitle).filter(Boolean);
+
   const episode = id.match(/:(\d+):(\d+)$/);
   const rows = db.prepare(`SELECT i.*, p.name AS playlist_name, p.user_agent AS playlist_user_agent, s.title AS series_title FROM items i JOIN playlists p ON p.id = i.playlist_id LEFT JOIN series s ON s.uid = i.series_uid WHERE p.enabled = 1 AND i.type = ? ORDER BY i.position`).all(resolved.type);
   const matches = rows.filter((row) => {
@@ -296,7 +299,10 @@ const getGlobalStreams = async (type, id, profileId) => {
     if (row.tmdb_id && Number(row.tmdb_id) === Number(resolved.details.id)) return true;
     const candidates = [row.name, row.series_title, row.tmdb_title, row.tmdb_original_title];
     try { candidates.push(...(row.tmdb_titles ? JSON.parse(row.tmdb_titles) : [])); } catch {}
-    return candidates.some((candidate) => titles.includes(normalizeName(candidate || '')));
+    return candidates.some((candidate) => {
+      const normalized = matchTitle(candidate);
+      return normalized && titles.some((title) => normalized === title || normalized.startsWith(`${title} `) || title.startsWith(`${normalized} `));
+    });
   });
   return { streams: matches.slice(0, 12).map((row) => {
     const attrs = row.attrs ? JSON.parse(row.attrs) : {};
