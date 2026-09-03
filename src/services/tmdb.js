@@ -182,7 +182,7 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
   const max = config.tmdbMaxMatchesPerSync;
   const rows = db.prepare(`
     SELECT type, COALESCE(series_title, name) AS lookup_name, series_uid FROM items
-    WHERE playlist_id = ? AND type IN ('movie', 'series')
+    WHERE playlist_id = ? AND type IN ('movie', 'series') AND tmdb_id IS NULL
     GROUP BY type, lookup_name, series_uid ORDER BY MIN(position) LIMIT ?
   `).all(playlistId, max);
   let matched = 0;
