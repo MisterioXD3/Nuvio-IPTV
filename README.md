@@ -88,6 +88,7 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `SYNC_TIMEOUT_MS` | `600000` | Tiempo máximo de una descarga |
 | `SYNC_RETRIES` | `3` | Reintentos ante errores temporales de red o HTTP |
 | `SYNC_RETRY_BASE_MS` | `1000` | Espera inicial del backoff entre reintentos |
+| `SYNC_USER_AGENTS` | VLC, Lavf, Kodi, Mozilla | User-Agents rotados durante las descargas |
 | `DEFAULT_USER_AGENT` | `VLC/3.0.20 LibVLC/3.0.20` | User-Agent para descargas y reproducción |
 | `STREAMS_PER_RESULT_LIMIT` | `0` | Máximo de streams por ficha; `0` devuelve todas las fuentes distintas |
 | `ADMIN_TOKEN` | *(vacío)* | Si se define, la API `/api/*` exige `Authorization: Bearer <token>` |

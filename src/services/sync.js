@@ -11,7 +11,7 @@ const xtream = require('./xtream');
 const { enrichPlaylist } = require('./tmdb');
 
 const BATCH_SIZE = 5000;
-const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const RETRYABLE_STATUS = new Set([403, 408, 425, 429, 500, 502, 503, 504]);
 
 const retryDelay = (attempt, response) => {
   const retryAfter = Number(response?.headers?.get('retry-after'));
@@ -21,9 +21,11 @@ const retryDelay = (attempt, response) => {
 
 const fetchPlaylist = async (url, options) => {
   let lastError;
+  const userAgents = options.userAgents?.length ? options.userAgents : [config.defaultUserAgent];
   for (let attempt = 0; attempt <= config.syncRetries; attempt += 1) {
     try {
-      const response = await fetch(url, options);
+      const headers = { ...options.headers, 'user-agent': userAgents[attempt % userAgents.length] };
+      const response = await fetch(url, { ...options, headers });
       if (response.ok || response.status === 304 || !RETRYABLE_STATUS.has(response.status) || attempt === config.syncRetries) return response;
       response.body?.cancel();
       await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt, response)));
@@ -166,6 +168,7 @@ const runSync = async (playlistId, { force = false } = {}) => {
           headers: { ...headers, referer: playlist.url },
           signal: controller.signal,
           redirect: 'follow',
+          userAgents: config.syncUserAgents,
         });
         if (candidateResponse.ok || candidateResponse.status === 304) {
           response = candidateResponse;
