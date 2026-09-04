@@ -97,7 +97,8 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `TMDB_API_KEY` | *(vacío)* | Clave v3 de TMDb; activa el enriquecimiento opcional de películas y series |
 | `TMDB_ACCESS_TOKEN` | *(vacío)* | Token Bearer v4 de TMDb; alternativa a `TMDB_API_KEY` |
 | `TMDB_LANGUAGES` | `es-ES,en-US,pt-BR,fr-FR,de-DE,it-IT` | Idiomas usados para resolver títulos traducidos y originales |
-| `TMDB_MAX_MATCHES_PER_SYNC` | `250` | Máximo de títulos candidatos enriquecidos por sincronización |
+| `TMDB_MAX_MATCHES_PER_SYNC` | `10000` | Máximo de títulos candidatos enriquecidos por sincronización |
+| `TMDB_CONCURRENCY` | `4` | Consultas TMDb simultáneas por lista |
 | `TMDB_MIN_MATCH_SCORE` | `60` | Umbral conservador de coincidencia de títulos |
 | `TMDB_REQUEST_DELAY_MS` | `50` | Pausa entre solicitudes a TMDb |
 | `TMDB_CACHE_TTL_MS` | `86400000` | Tiempo de caché de respuestas TMDb |

@@ -186,10 +186,10 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
     GROUP BY type, lookup_name, series_uid ORDER BY MIN(position) LIMIT ?
   `).all(playlistId, max);
   let matched = 0;
-  for (const row of rows) {
+  const processRow = async (row) => {
     try {
       const match = await searchOne(row.type, row.lookup_name, credentials, splitTitleYear(row.lookup_name).year);
-      if (!match) continue;
+      if (!match) return;
       const aliases = unique([match.title, match.originalTitle, ...match.aliases]);
       const aliasesJson = JSON.stringify(aliases);
       const searchable = normalizeName([row.lookup_name, ...aliases].join(' '));
@@ -203,7 +203,12 @@ const enrichPlaylist = async (playlistId, credentials = {}) => {
     } catch (error) {
       console.warn(`[nuvio-iptv] TMDb no pudo resolver \"${row.lookup_name}\": ${error.message}`);
     }
-  }
+  };
+  let cursor = 0;
+  const workerCount = Math.min(Math.max(config.tmdbConcurrency, 1), rows.length);
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (cursor < rows.length) await processRow(rows[cursor++]);
+  }));
   if (matched) {
     db.prepare('DELETE FROM items_fts WHERE playlist_id = ?').run(playlistId);
     db.prepare(`INSERT INTO items_fts (text, playlist_id, item_id) SELECT search_name || ' ' || COALESCE(group_name, ''), playlist_id, id FROM items WHERE playlist_id = ?`).run(playlistId);
