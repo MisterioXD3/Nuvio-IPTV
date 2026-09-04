@@ -86,6 +86,7 @@ Nuvio necesita el addon en HTTPS público. Guías paso a paso:
 | `CATALOG_PAGE_SIZE` | `100` | Elementos por página de catálogo |
 | `SCHEDULER_INTERVAL_MS` | `60000` | Cada cuánto se revisan las listas vencidas |
 | `SYNC_TIMEOUT_MS` | `600000` | Tiempo máximo de una descarga |
+| `SYNC_ATTEMPT_TIMEOUT_MS` | `20000` | Tiempo máximo de cada intento de conexión |
 | `SYNC_RETRIES` | `3` | Reintentos ante errores temporales de red o HTTP |
 | `SYNC_RETRY_BASE_MS` | `1000` | Espera inicial del backoff entre reintentos |
 | `SYNC_USER_AGENTS` | VLC, Lavf, Kodi, Mozilla | User-Agents rotados durante las descargas |

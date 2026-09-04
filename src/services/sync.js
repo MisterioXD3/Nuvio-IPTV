@@ -25,7 +25,8 @@ const fetchPlaylist = async (url, options) => {
   for (let attempt = 0; attempt <= config.syncRetries; attempt += 1) {
     try {
       const headers = { ...options.headers, 'user-agent': userAgents[attempt % userAgents.length] };
-      const response = await fetch(url, { ...options, headers });
+      const attemptSignal = AbortSignal.any([options.signal, AbortSignal.timeout(config.syncAttemptTimeoutMs)]);
+      const response = await fetch(url, { ...options, headers, signal: attemptSignal });
       if (response.ok || response.status === 304 || !RETRYABLE_STATUS.has(response.status) || attempt === config.syncRetries) return response;
       response.body?.cancel();
       await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt, response)));
