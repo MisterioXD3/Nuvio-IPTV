@@ -105,6 +105,12 @@ const swapPlaylistItems = db.transaction((playlistId) => {
   ).run(playlistId);
 });
 
+const errorMessage = (error) => {
+  const cause = error?.cause;
+  const detail = cause?.code || cause?.syscall || cause?.message;
+  return detail && !String(error.message).includes(detail) ? `${error.message} (${detail})` : error.message;
+};
+
 const markSync = (playlistId, patch) => {
   db.prepare(
     `UPDATE playlists SET
@@ -156,7 +162,7 @@ const runSync = async (playlistId, { force = false } = {}) => {
     }
 
     const urls = playlist.kind === 'xtream' ? xtream.playlistUrls(playlist) : [playlist.url];
-    const headers = { 'user-agent': userAgent, accept: '*/*', 'accept-encoding': 'gzip, deflate, br' };
+    const headers = { 'user-agent': userAgent, accept: '*/*', connection: 'close', 'cache-control': force ? 'no-cache' : 'no-cache' };
     if (!force && playlist.http_etag) headers['if-none-match'] = playlist.http_etag;
     if (!force && playlist.http_last_modified) headers['if-modified-since'] = playlist.http_last_modified;
 
@@ -272,7 +278,7 @@ const runSync = async (playlistId, { force = false } = {}) => {
     db.prepare('DELETE FROM staging_items WHERE playlist_id = ?').run(playlistId);
     markSync(playlistId, {
       status: 'error',
-      error: error.message,
+      error: errorMessage(error),
       durationMs: Date.now() - startedAt,
     });
     throw error;
