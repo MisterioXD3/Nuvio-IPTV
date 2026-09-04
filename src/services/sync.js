@@ -153,16 +153,32 @@ const runSync = async (playlistId, { force = false } = {}) => {
       }
     }
 
-    const url = playlist.kind === 'xtream' ? xtream.playlistUrl(playlist) : playlist.url;
-    const headers = { 'user-agent': userAgent, accept: '*/*' };
+    const urls = playlist.kind === 'xtream' ? xtream.playlistUrls(playlist) : [playlist.url];
+    const headers = { 'user-agent': userAgent, accept: '*/*', 'accept-encoding': 'gzip, deflate, br' };
     if (!force && playlist.http_etag) headers['if-none-match'] = playlist.http_etag;
     if (!force && playlist.http_last_modified) headers['if-modified-since'] = playlist.http_last_modified;
 
-    const response = await fetchPlaylist(url, {
-      headers: { ...headers, referer: playlist.url },
-      signal: controller.signal,
-      redirect: 'follow',
-    });
+    let response = null;
+    let lastFetchError = null;
+    for (const candidateUrl of urls) {
+      try {
+        const candidateResponse = await fetchPlaylist(candidateUrl, {
+          headers: { ...headers, referer: playlist.url },
+          signal: controller.signal,
+          redirect: 'follow',
+        });
+        if (candidateResponse.ok || candidateResponse.status === 304) {
+          response = candidateResponse;
+          break;
+        }
+        lastFetchError = new Error(`HTTP ${candidateResponse.status} al descargar la lista`);
+        candidateResponse.body?.cancel();
+      } catch (error) {
+        lastFetchError = error;
+        if (controller.signal.aborted) throw error;
+      }
+    }
+    if (!response) throw lastFetchError || new Error('No se pudo descargar la lista');
 
     if (response.status === 304) {
       markSync(playlistId, {

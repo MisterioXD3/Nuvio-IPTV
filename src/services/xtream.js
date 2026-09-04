@@ -4,16 +4,19 @@ const config = require('../config');
 const buildBase = (url) => url.replace(/\/+$/, '').replace(/\/(get|player_api)\.php.*$/i, '');
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const playlistUrl = (playlist) => {
+const playlistUrls = (playlist) => {
   const base = buildBase(playlist.url);
-  const params = new URLSearchParams({
-    username: playlist.username || '',
-    password: playlist.password || '',
-    type: 'm3u_plus',
-    output: 'ts',
+  return ['ts', 'm3u8'].map((output) => {
+    const params = new URLSearchParams({
+      username: playlist.username || '',
+      password: playlist.password || '',
+      type: 'm3u_plus',
+      output,
+    });
+    return `${base}/get.php?${params.toString()}`;
   });
-  return `${base}/get.php?${params.toString()}`;
 };
+const playlistUrl = (playlist) => playlistUrls(playlist)[0];
 
 /**
  * Reads the Xtream Codes account info so the UI can show the real subscription
@@ -46,4 +49,4 @@ const fetchAccountInfo = async (playlist, { signal, userAgent } = {}) => {
   };
 };
 
-module.exports = { playlistUrl, fetchAccountInfo, buildBase };
+module.exports = { playlistUrl, playlistUrls, fetchAccountInfo, buildBase };
